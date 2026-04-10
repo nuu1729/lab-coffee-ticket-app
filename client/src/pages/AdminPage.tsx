@@ -46,6 +46,19 @@ export default function AdminPage() {
     enabled: user?.role === "admin",
   });
 
+  // ユーザー名の重複をチェック
+  const duplicateUsernames = useMemo(() => {
+    if (!userUsageStatsQuery.data) return new Set();
+    const nameCount = new Map<string, number>();
+    userUsageStatsQuery.data.forEach(stat => {
+      const displayName = stat.displayName || stat.userName;
+      if (displayName) {
+        nameCount.set(displayName, (nameCount.get(displayName) || 0) + 1);
+      }
+    });
+    return new Set(Array.from(nameCount.entries()).filter(([, count]) => count > 1).map(([name]) => name));
+  }, [userUsageStatsQuery.data]);
+
   const [editingBeanId, setEditingBeanId] = useState<number | undefined>(undefined);
   const [isUserListOpen, setIsUserListOpen] = useState(false);
   const [beanName, setBeanName] = useState("");
@@ -434,6 +447,12 @@ export default function AdminPage() {
               <CardTitle className="text-2xl font-semibold tracking-tight text-stone-900">利用者一覧</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              {duplicateUsernames.size > 0 && (
+                <div className="rounded-[24px] border border-red-200/80 bg-red-50/50 p-4">
+                  <p className="text-sm font-semibold text-red-900">⚠️ ユーザー名の重複が検出されました</p>
+                  <p className="mt-1 text-xs text-red-700">以下のユーザー名が複数のアカウントで使用されています: {Array.from(duplicateUsernames).join(", ")}</p>
+                </div>
+              )}
               {userUsageStatsQuery.isLoading ? (
                 <div className="space-y-3">
                   <Skeleton className="h-20 rounded-[22px]" />
@@ -452,15 +471,19 @@ export default function AdminPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {userUsageStatsQuery.data.map(stat => (
-                        <tr key={stat.userId} className="border-b border-stone-100/80 hover:bg-stone-50/50">
-                          <td className="px-4 py-3 font-medium text-stone-900">{stat.displayName || stat.userName || "ユーザー未設定"}</td>
+                      {userUsageStatsQuery.data.map(stat => {
+                        const displayName = stat.displayName || stat.userName;
+                        const isDuplicate = displayName && duplicateUsernames.has(displayName);
+                        return (
+                        <tr key={stat.userId} className={`border-b border-stone-100/80 hover:bg-stone-50/50 ${isDuplicate ? "bg-red-50/30" : ""}`}>
+                          <td className={`px-4 py-3 font-medium ${isDuplicate ? "text-red-900" : "text-stone-900"}`}>{displayName || "ユーザー未設定"}</td>
                           <td className="px-4 py-3 text-xs text-stone-600">{stat.userEmail}</td>
                           <td className="px-4 py-3 text-center text-stone-900">{stat.totalConsumptions}</td>
                           <td className="px-4 py-3 text-center text-stone-900">{stat.totalPurchasedTickets}</td>
                           <td className="px-4 py-3 text-center font-semibold text-stone-900">{stat.currentBalance}</td>
                         </tr>
-                      ))}
+                      );
+                      })}
                     </tbody>
                   </table>
                 </div>

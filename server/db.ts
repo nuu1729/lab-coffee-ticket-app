@@ -561,6 +561,14 @@ export async function createTestAccounts() {
     throw new Error("Database is not available");
   }
 
+  // メールアドレスの重複チェック
+  const existingAdmin = await db.select().from(users).where(eq(users.email, "test-admin@lab-coffee.local")).limit(1);
+  const existingUser = await db.select().from(users).where(eq(users.email, "test-user@lab-coffee.local")).limit(1);
+
+  if (existingAdmin.length > 0 || existingUser.length > 0) {
+    throw new Error("テストアカウントは既に存在します。重複したメールアドレスのアカウントがあります。");
+  }
+
   const adminOpenId = `test-admin-${nanoid(8)}`;
   const userOpenId = `test-user-${nanoid(8)}`;
 
@@ -610,12 +618,14 @@ export async function createTestAccounts() {
       name: "テスト管理者",
       email: "test-admin@lab-coffee.local",
       role: "admin",
+      password: "1111",
     },
     userAccount: {
       openId: userOpenId,
       name: "テストユーザー",
       email: "test-user@lab-coffee.local",
       role: "user",
+      password: "1111",
     },
   };
 }
