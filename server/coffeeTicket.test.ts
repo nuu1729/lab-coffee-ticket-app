@@ -13,6 +13,7 @@ const dbMock = vi.hoisted(() => ({
   getUsageStatsSummary: vi.fn(),
   getUserById: vi.fn(),
   getUserPurchaseRequests: vi.fn(),
+  getUserUsageStats: vi.fn(),
   listActiveQrCodes: vi.fn(),
   listCoffeeBeans: vi.fn(),
   listPendingPurchaseRequests: vi.fn(),
@@ -233,3 +234,43 @@ describe("coffee ticket routers", () => {
     });
   });
 });
+
+  it("allows admins to fetch user usage stats", async () => {
+    dbMock.getUserUsageStats.mockResolvedValue([
+      {
+        userId: 1,
+        userName: "User One",
+        userEmail: "user1@example.com",
+        displayName: "User One",
+        totalConsumptions: 5,
+        totalPurchasedTickets: 10,
+        currentBalance: 5,
+      },
+      {
+        userId: 2,
+        userName: "User Two",
+        userEmail: "user2@example.com",
+        displayName: "User Two",
+        totalConsumptions: 3,
+        totalPurchasedTickets: 25,
+        currentBalance: 22,
+      },
+    ]);
+
+    const caller = appRouter.createCaller(createContext("admin"));
+    const result = await caller.admin.userUsageStats();
+
+    expect(result).toHaveLength(2);
+    expect(result[0].userId).toBe(1);
+    expect(result[0].totalConsumptions).toBe(5);
+    expect(result[1].currentBalance).toBe(22);
+    expect(dbMock.getUserUsageStats).toHaveBeenCalledTimes(1);
+  });
+
+  it("blocks regular users from fetching user usage stats", async () => {
+    const caller = appRouter.createCaller(createContext("user"));
+
+    await expect(caller.admin.userUsageStats()).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+  });

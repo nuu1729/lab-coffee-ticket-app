@@ -30,6 +30,8 @@ export default function DashboardPage() {
       setIsEditingName(false);
       await utils.user.profile.invalidate();
       await utils.auth.me.invalidate();
+      await utils.ticket.dashboard.invalidate();
+      await utils.admin.usageLogs.invalidate();
     },
     onError: error => {
       toast.error(error.message || "アカウント名の更新に失敗しました。");

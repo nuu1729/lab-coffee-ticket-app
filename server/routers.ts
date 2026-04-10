@@ -15,6 +15,7 @@ import {
   getUsageStatsSummary,
   getUserById,
   getUserPurchaseRequests,
+  getUserUsageStats,
   listActiveQrCodes,
   listCoffeeBeans,
   listPendingPurchaseRequests,
@@ -173,6 +174,16 @@ export const appRouter = router({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: error instanceof Error ? error.message : "テストアカウント作成に失敗しました",
+        });
+      }
+    }),
+    userUsageStats: adminProcedure.query(async () => {
+      try {
+        return await getUserUsageStats();
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: error instanceof Error ? error.message : "利用者統計の取得に失敗しました",
         });
       }
     }),

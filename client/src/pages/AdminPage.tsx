@@ -4,12 +4,13 @@ import QrCodeDisplay from "@/components/QrCodeDisplay";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { BarChart3, Coffee, Copy, QrCode, ShieldCheck, Ticket, UserCog } from "lucide-react";
+import { BarChart3, Coffee, Copy, QrCode, ShieldCheck, Ticket, UserCog, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Redirect } from "wouter";
 import { toast } from "sonner";
@@ -41,8 +42,12 @@ export default function AdminPage() {
   const qrCodesQuery = trpc.admin.qrCodes.useQuery(undefined, {
     enabled: user?.role === "admin",
   });
+  const userUsageStatsQuery = trpc.admin.userUsageStats.useQuery(undefined, {
+    enabled: user?.role === "admin",
+  });
 
   const [editingBeanId, setEditingBeanId] = useState<number | undefined>(undefined);
+  const [isUserListOpen, setIsUserListOpen] = useState(false);
   const [beanName, setBeanName] = useState("");
   const [beanFeatures, setBeanFeatures] = useState("");
   const [beanPriceYen, setBeanPriceYen] = useState("0");
@@ -140,6 +145,7 @@ export default function AdminPage() {
           <TabsTrigger value="qr" className="rounded-2xl px-4 py-2.5">QRコード管理</TabsTrigger>
           <TabsTrigger value="test" className="rounded-2xl px-4 py-2.5">テストアカウント</TabsTrigger>
           <TabsTrigger value="logs" className="rounded-2xl px-4 py-2.5">利用ログ</TabsTrigger>
+          <TabsTrigger value="users" className="rounded-2xl px-4 py-2.5">利用者一覧</TabsTrigger>
           <TabsTrigger value="stats" className="rounded-2xl px-4 py-2.5">統計API概要</TabsTrigger>
         </TabsList>
 
@@ -417,6 +423,49 @@ export default function AdminPage() {
                 ))
               ) : (
                 <EmptyState text="まだ利用ログはありません。" />
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="users">
+          <Card className="rounded-[28px] border-white/60 bg-white/75 shadow-[0_18px_60px_rgba(67,44,24,0.08)] backdrop-blur-xl">
+            <CardHeader>
+              <CardTitle className="text-2xl font-semibold tracking-tight text-stone-900">利用者一覧</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {userUsageStatsQuery.isLoading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-20 rounded-[22px]" />
+                  <Skeleton className="h-20 rounded-[22px]" />
+                </div>
+              ) : userUsageStatsQuery.data?.length ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-stone-200/80">
+                        <th className="px-4 py-3 text-left font-semibold text-stone-900">ユーザー名</th>
+                        <th className="px-4 py-3 text-left font-semibold text-stone-900">メール</th>
+                        <th className="px-4 py-3 text-center font-semibold text-stone-900">合計利用回数</th>
+                        <th className="px-4 py-3 text-center font-semibold text-stone-900">購入枚数</th>
+                        <th className="px-4 py-3 text-center font-semibold text-stone-900">現在残量</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {userUsageStatsQuery.data.map(stat => (
+                        <tr key={stat.userId} className="border-b border-stone-100/80 hover:bg-stone-50/50">
+                          <td className="px-4 py-3 font-medium text-stone-900">{stat.displayName || stat.userName || "ユーザー未設定"}</td>
+                          <td className="px-4 py-3 text-xs text-stone-600">{stat.userEmail}</td>
+                          <td className="px-4 py-3 text-center text-stone-900">{stat.totalConsumptions}</td>
+                          <td className="px-4 py-3 text-center text-stone-900">{stat.totalPurchasedTickets}</td>
+                          <td className="px-4 py-3 text-center font-semibold text-stone-900">{stat.currentBalance}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <EmptyState text="まだ一般ユーザーはいません。" />
               )}
             </CardContent>
           </Card>

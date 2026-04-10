@@ -618,3 +618,39 @@ export async function createTestAccounts() {
     },
   };
 }
+
+
+export async function getUserUsageStats() {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+
+  // ユーザーごとの統計情報を取得
+  const userStats = await db
+    .select({
+      userId: users.id,
+      userName: users.name,
+      userEmail: users.email,
+      displayName: users.displayName,
+      totalConsumptions: sql<number>`COALESCE(SUM(CASE WHEN ${ticketTransactions.type} = 'consume' THEN 1 ELSE 0 END), 0)`,
+      totalPurchasedTickets: sql<number>`COALESCE(SUM(CASE WHEN ${ticketTransactions.type} = 'purchaseGrant' THEN ${ticketTransactions.delta} ELSE 0 END), 0)`,
+      currentBalance: sql<number>`COALESCE(${ticketWallets.balance}, 0)`,
+    })
+    .from(users)
+    .leftJoin(ticketTransactions, eq(users.id, ticketTransactions.userId))
+    .leftJoin(ticketWallets, eq(users.id, ticketWallets.userId))
+    .where(eq(users.role, "user"))
+    .groupBy(users.id, users.name, users.email, users.displayName, ticketWallets.balance)
+    .orderBy(desc(sql<number>`COALESCE(SUM(CASE WHEN ${ticketTransactions.type} = 'consume' THEN 1 ELSE 0 END), 0)`));
+
+  return userStats.map(stat => ({
+    userId: stat.userId,
+    userName: stat.userName,
+    userEmail: stat.userEmail,
+    displayName: stat.displayName,
+    totalConsumptions: Number(stat.totalConsumptions ?? 0),
+    totalPurchasedTickets: Number(stat.totalPurchasedTickets ?? 0),
+    currentBalance: Number(stat.currentBalance ?? 0),
+  }));
+}
