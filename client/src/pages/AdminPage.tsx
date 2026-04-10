@@ -45,6 +45,9 @@ export default function AdminPage() {
   const userUsageStatsQuery = trpc.admin.userUsageStats.useQuery(undefined, {
     enabled: user?.role === "admin",
   });
+  const testAccountsQuery = trpc.admin.testAccounts.useQuery(undefined, {
+    enabled: user?.role === "admin",
+  });
 
   // ユーザー名の重複をチェック
   const duplicateUsernames = useMemo(() => {
@@ -179,7 +182,7 @@ export default function AdminPage() {
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-base font-semibold text-stone-900">{request.requesterName || "ユーザー未設定"}</p>
+                          <p className="text-base font-semibold text-stone-900">{request.displayName || request.requesterName || "ユーザー未設定"}</p>
                           <Badge className="rounded-full bg-amber-100 px-3 py-1 text-amber-900 hover:bg-amber-100">承認待ち</Badge>
                         </div>
                         <p className="mt-2 text-sm text-stone-600">
@@ -407,6 +410,29 @@ export default function AdminPage() {
                 <UserCog className="mr-2 h-4 w-4" />
                 {createTestAccountsMutation.isPending ? "作成中..." : "テストアカウントを作成"}
               </Button>
+              {testAccountsQuery.isLoading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-20 rounded-[22px]" />
+                  <Skeleton className="h-20 rounded-[22px]" />
+                </div>
+              ) : testAccountsQuery.data?.length ? (
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold text-stone-900">利用中のテストアカウント</h3>
+                  {testAccountsQuery.data.map(account => (
+                    <div key={account.id} className="rounded-[24px] border border-stone-200/80 bg-white/80 p-5">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex-1">
+                          <p className="text-base font-semibold text-stone-900">{account.displayName || account.name}</p>
+                          <p className="text-sm text-stone-600">{account.email}</p>
+                          <p className="mt-1 text-xs text-stone-500">役割: {account.role === "admin" ? "管理者" : "ユーザー"}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState text="テストアカウントはまだ作成されていません。" />
+              )}
             </CardContent>
           </Card>
         </TabsContent>

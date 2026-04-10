@@ -326,6 +326,7 @@ export async function listPendingPurchaseRequests() {
       approvedByUserId: purchaseRequests.approvedByUserId,
       requesterName: users.name,
       requesterEmail: users.email,
+      displayName: users.displayName,
     })
     .from(purchaseRequests)
     .innerJoin(users, eq(purchaseRequests.userId, users.id))
@@ -625,7 +626,7 @@ export async function createTestAccounts() {
       name: "テストユーザー",
       email: "test-user@lab-coffee.local",
       role: "user",
-      password: "1111",
+      password: "1234567890@abc",
     },
   };
 }
@@ -664,4 +665,58 @@ export async function getUserUsageStats() {
     totalPurchasedTickets: Number(stat.totalPurchasedTickets ?? 0),
     currentBalance: Number(stat.currentBalance ?? 0),
   }));
+}
+
+
+export async function deleteUser(userId: number) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+
+  // ユーザーに関連するすべてのデータを削除
+  // 1. チケットウォレットを削除
+  await db.delete(ticketWallets).where(eq(ticketWallets.userId, userId));
+
+  // 2. チケットトランザクション（利用ログ）を削除
+  await db.delete(ticketTransactions).where(eq(ticketTransactions.userId, userId));
+
+  // 3. 購入申請を削除
+  await db.delete(purchaseRequests).where(eq(purchaseRequests.userId, userId));
+
+  // 4. ユーザー自体を削除
+  await db.delete(users).where(eq(users.id, userId));
+
+  return { success: true as const };
+}
+
+export async function deleteUsageLog(logId: number) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+
+  await db.delete(ticketTransactions).where(eq(ticketTransactions.id, logId));
+
+  return { success: true as const };
+}
+
+export async function listTestAccounts() {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+
+  return db
+    .select({
+      id: users.id,
+      name: users.name,
+      displayName: users.displayName,
+      email: users.email,
+      role: users.role,
+      isTestAccount: users.isTestAccount,
+    })
+    .from(users)
+    .where(eq(users.isTestAccount, 1))
+    .orderBy(desc(users.createdAt));
 }

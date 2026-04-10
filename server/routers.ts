@@ -10,6 +10,8 @@ import {
   createPurchaseRequest,
   createTestAccounts,
   deactivateQrCode,
+  deleteUser,
+  deleteUsageLog,
   generateQrCode,
   getDashboardData,
   getUsageStatsSummary,
@@ -19,6 +21,7 @@ import {
   listActiveQrCodes,
   listCoffeeBeans,
   listPendingPurchaseRequests,
+  listTestAccounts,
   listUsageLogs,
   saveCoffeeBean,
   updateUserDisplayName,
@@ -184,6 +187,16 @@ export const appRouter = router({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: error instanceof Error ? error.message : "利用者統計の取得に失敗しました",
+        });
+      }
+    }),
+    testAccounts: adminProcedure.query(async () => {
+      try {
+        return await listTestAccounts();
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: error instanceof Error ? error.message : "テストアカウント一覧の取得に失敗しました",
         });
       }
     }),
