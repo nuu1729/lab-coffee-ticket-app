@@ -65,3 +65,8 @@
   - [x] 利用者一覧の各ユーザーの右端に削除ボタン「×」を追加（確認モーダル付き）
   - [x] 利用者一覧のアカウント名表示を統一
   - [x] 全テストが引き続き合格することを確認
+
+- [x] 購入申請の申請者名をdisplayNameで表示する
+  - [x] db.tsのlistPendingPurchaseRequestsがdisplayNameを取得していることを確認
+  - [x] AdminPageで購入申請情報をdisplayName優先表示で表示していることを確認
+  - [x] 全テストが引き続き合格していることを確認
