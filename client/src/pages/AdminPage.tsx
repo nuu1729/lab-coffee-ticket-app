@@ -1,5 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
+import QrCodeDisplay from "@/components/QrCodeDisplay";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,9 +14,14 @@ import { useMemo, useState } from "react";
 import { Redirect } from "wouter";
 import { toast } from "sonner";
 
+function EmptyState({ text }: { text: string }) {
+  return <div className="rounded-[24px] border border-dashed border-stone-300/80 bg-white/50 p-6 text-sm leading-7 text-stone-600">{text}</div>;
+}
+
 export default function AdminPage() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
+  const [selectedQrCode, setSelectedQrCode] = useState<{ id: number; code: string; accessUrl: string } | null>(null);
 
   const pendingQuery = trpc.admin.pendingPurchaseRequests.useQuery(undefined, {
     enabled: user?.role === "admin",
@@ -311,6 +317,14 @@ export default function AdminPage() {
                             variant="outline"
                             size="sm"
                             className="rounded-full border-stone-300 bg-white/70"
+                            onClick={() => setSelectedQrCode({ id: qr.id, code: qr.code, accessUrl: qr.accessUrl })}
+                          >
+                            <QrCode className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-full border-stone-300 bg-white/70"
                             onClick={() => {
                               navigator.clipboard.writeText(qr.accessUrl);
                               toast.success("URLをコピーしました。");
@@ -335,6 +349,22 @@ export default function AdminPage() {
                   <EmptyState text="アクティブなQRコードはありません。新しく生成してください。" />
                 )}
               </div>
+              {selectedQrCode && (
+                <div className="mt-6 rounded-[24px] border border-stone-200/80 bg-stone-50/50 p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-semibold text-stone-900">QRコード表示</h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedQrCode(null)}
+                      className="h-6 w-6 p-0"
+                    >
+                      ✕
+                    </Button>
+                  </div>
+                  <QrCodeDisplay qrCode={selectedQrCode.code} accessUrl={selectedQrCode.accessUrl} />
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -453,10 +483,4 @@ function SummaryCard({ icon: Icon, title, value, helper }: { icon: any; title: s
   );
 }
 
-function EmptyState({ text }: { text: string }) {
-  return (
-    <div className="rounded-[24px] border border-dashed border-stone-300 bg-stone-50/50 py-12 text-center">
-      <p className="text-sm text-stone-600">{text}</p>
-    </div>
-  );
-}
+
