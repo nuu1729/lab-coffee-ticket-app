@@ -3,17 +3,37 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { trpc } from "@/lib/trpc";
-import { Coffee, CreditCard, QrCode, Ticket } from "lucide-react";
+import { Coffee, CreditCard, Edit2, QrCode, Ticket } from "lucide-react";
+import { useState } from "react";
 import { useLocation } from "wouter";
+import { toast } from "sonner";
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
+  const utils = trpc.useUtils();
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [newDisplayName, setNewDisplayName] = useState(user?.name || "");
+
   const { data, isLoading } = trpc.ticket.dashboard.useQuery(undefined, {
     enabled: !!user,
+  });
+
+  const updateNameMutation = trpc.user.updateDisplayName.useMutation({
+    onSuccess: async () => {
+      toast.success("アカウント名を更新しました。");
+      setIsEditingName(false);
+      await utils.user.profile.invalidate();
+      await utils.auth.me.invalidate();
+    },
+    onError: error => {
+      toast.error(error.message || "アカウント名の更新に失敗しました。");
+    },
   });
 
   return (
@@ -21,6 +41,49 @@ export default function DashboardPage() {
       title="ダッシュボード"
       subtitle="残チケット枚数と現在提供中のコーヒー豆情報を、研究室の日常動線に沿って見やすく整理しました。"
     >
+      {/* アカウント情報セクション */}
+      <section className="mb-6">
+        <Card className="rounded-[28px] border-white/60 bg-white/75 shadow-[0_18px_60px_rgba(67,44,24,0.08)] backdrop-blur-xl">
+          <CardContent className="flex items-center justify-between gap-4 pt-6">
+            <div>
+              <p className="text-xs uppercase tracking-[0.28em] text-stone-500">アカウント</p>
+              <p className="mt-2 text-lg font-semibold text-stone-900">{user?.name || "ユーザー未設定"}</p>
+              <p className="mt-1 text-xs text-stone-500">{user?.email}</p>
+            </div>
+            <Dialog open={isEditingName} onOpenChange={setIsEditingName}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="rounded-full border-stone-300 bg-white/70">
+                  <Edit2 className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="rounded-[28px] border-white/60 bg-white/75 shadow-[0_18px_60px_rgba(67,44,24,0.08)] backdrop-blur-xl">
+                <DialogHeader>
+                  <DialogTitle>アカウント名を変更</DialogTitle>
+                  <DialogDescription>表示されるアカウント名を変更できます。</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <Input
+                    value={newDisplayName}
+                    onChange={e => setNewDisplayName(e.target.value)}
+                    placeholder="新しいアカウント名"
+                    className="h-12 rounded-2xl border-stone-200 bg-white/70"
+                  />
+                  <Button
+                    className="h-12 w-full rounded-full bg-stone-900 hover:bg-stone-800"
+                    disabled={updateNameMutation.isPending || !newDisplayName.trim()}
+                    onClick={() => {
+                      updateNameMutation.mutate({ displayName: newDisplayName.trim() });
+                    }}
+                  >
+                    {updateNameMutation.isPending ? "更新中..." : "アカウント名を更新"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </CardContent>
+        </Card>
+      </section>
+
       <section className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
         <Card className="overflow-hidden rounded-[28px] border-white/60 bg-white/75 shadow-[0_18px_60px_rgba(67,44,24,0.08)] backdrop-blur-xl">
           <CardHeader className="pb-3">

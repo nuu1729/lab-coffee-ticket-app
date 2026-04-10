@@ -1,10 +1,12 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import { nanoid } from "nanoid";
 import {
   coffeeBeans,
   InsertCoffeeBean,
   InsertUser,
   purchaseRequests,
+  qrCodes,
   ticketTransactions,
   ticketWallets,
   users,
@@ -119,6 +121,27 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+export async function getUserById(userId: number) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+
+  const result = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  return result[0] ?? null;
+}
+
+export async function updateUserDisplayName(userId: number, displayName: string) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+
+  await db.update(users).set({ displayName }).where(eq(users.id, userId));
+
+  return getUserById(userId);
+}
+
 async function ensureTicketWalletRecord(userId: number, dbClient: any) {
   if (!dbClient) {
     throw new Error("Database is not available");
@@ -178,6 +201,7 @@ export async function createPurchaseRequest(input: {
   planCode: TicketPlanCode;
   paymentMethod: PaymentMethod;
   note?: string | null;
+  isTestRequest?: boolean;
 }) {
   const db = await getDb();
   if (!db) {
@@ -186,20 +210,44 @@ export async function createPurchaseRequest(input: {
 
   const plan = getTicketPlanDefinition(input.planCode);
 
-  await db.insert(purchaseRequests).values({
-    userId: input.userId,
-    planCode: input.planCode,
-    ticketCount: plan.ticketCount,
-    priceYen: plan.priceYen,
-    paymentMethod: input.paymentMethod,
-    note: input.note ?? null,
-    status: "pending",
-  });
+  return db.transaction(async tx => {
+    await tx.insert(purchaseRequests).values({
+      userId: input.userId,
+      planCode: input.planCode,
+      ticketCount: plan.ticketCount,
+      priceYen: plan.priceYen,
+      paymentMethod: input.paymentMethod,
+      note: input.note ?? null,
+      status: input.isTestRequest ? "approved" : "pending",
+      isTestRequest: input.isTestRequest ? 1 : 0,
+      approvedAt: input.isTestRequest ? new Date() : null,
+      approvedByUserId: input.isTestRequest ? input.userId : null,
+    });
 
-  return {
-    success: true as const,
-    plan,
-  };
+    // テストリクエストの場合は自動的にチケットを付与
+    if (input.isTestRequest) {
+      const wallet = await ensureTicketWalletRecord(input.userId, tx);
+      await tx
+        .update(ticketWallets)
+        .set({
+          balance: wallet.balance + plan.ticketCount,
+        })
+        .where(eq(ticketWallets.userId, input.userId));
+
+      await tx.insert(ticketTransactions).values({
+        userId: input.userId,
+        delta: plan.ticketCount,
+        type: "purchaseGrant",
+        sourceType: "purchaseRequest",
+        performedByUserId: input.userId,
+      });
+    }
+
+    return {
+      success: true as const,
+      plan,
+    };
+  });
 }
 
 export async function getUserPurchaseRequests(userId: number) {
@@ -448,5 +496,117 @@ export async function getUsageStatsSummary() {
     totalPendingRequests: Number(summary?.totalPendingRequests ?? 0),
     activeBean: activeBeans[0] ?? null,
     generatedAt: Date.now(),
+  };
+}
+
+export async function generateQrCode(adminUserId: number, baseUrl: string) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+
+  const code = nanoid(12);
+  const accessUrl = `${baseUrl}/use?qr=${code}`;
+
+  await db.insert(qrCodes).values({
+    code,
+    accessUrl,
+    createdByUserId: adminUserId,
+    isActive: 1,
+  });
+
+  return {
+    code,
+    accessUrl,
+    createdAt: new Date(),
+  };
+}
+
+export async function listActiveQrCodes() {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+
+  return db
+    .select()
+    .from(qrCodes)
+    .where(eq(qrCodes.isActive, 1))
+    .orderBy(desc(qrCodes.createdAt), desc(qrCodes.id));
+}
+
+export async function deactivateQrCode(codeId: number) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+
+  await db.update(qrCodes).set({ isActive: 0 }).where(eq(qrCodes.id, codeId));
+
+  return { success: true as const };
+}
+
+export async function createTestAccounts() {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+
+  const adminOpenId = `test-admin-${nanoid(8)}`;
+  const userOpenId = `test-user-${nanoid(8)}`;
+
+  // テスト用管理者アカウント
+  await db.insert(users).values({
+    openId: adminOpenId,
+    name: "テスト管理者",
+    displayName: "テスト管理者",
+    email: "test-admin@lab-coffee.local",
+    loginMethod: "test",
+    role: "admin",
+    isTestAccount: 1,
+  });
+
+  // テスト用一般ユーザーアカウント
+  await db.insert(users).values({
+    openId: userOpenId,
+    name: "テストユーザー",
+    displayName: "テストユーザー",
+    email: "test-user@lab-coffee.local",
+    loginMethod: "test",
+    role: "user",
+    isTestAccount: 1,
+  });
+
+  // 両アカウントのウォレットを初期化
+  const adminUser = await db.select().from(users).where(eq(users.openId, adminOpenId)).limit(1);
+  const regularUser = await db.select().from(users).where(eq(users.openId, userOpenId)).limit(1);
+
+  if (adminUser[0]) {
+    await db.insert(ticketWallets).values({
+      userId: adminUser[0].id,
+      balance: 0,
+    });
+  }
+
+  if (regularUser[0]) {
+    await db.insert(ticketWallets).values({
+      userId: regularUser[0].id,
+      balance: 0,
+    });
+  }
+
+  return {
+    adminAccount: {
+      openId: adminOpenId,
+      name: "テスト管理者",
+      email: "test-admin@lab-coffee.local",
+      role: "admin",
+    },
+    userAccount: {
+      openId: userOpenId,
+      name: "テストユーザー",
+      email: "test-user@lab-coffee.local",
+      role: "user",
+    },
   };
 }

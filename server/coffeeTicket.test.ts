@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { TrpcContext } from "./_core/context";
 import { appRouter } from "./routers";
 
@@ -6,13 +6,19 @@ const dbMock = vi.hoisted(() => ({
   approvePurchaseRequest: vi.fn(),
   consumeTicketViaQr: vi.fn(),
   createPurchaseRequest: vi.fn(),
+  createTestAccounts: vi.fn(),
+  deactivateQrCode: vi.fn(),
+  generateQrCode: vi.fn(),
   getDashboardData: vi.fn(),
   getUsageStatsSummary: vi.fn(),
+  getUserById: vi.fn(),
   getUserPurchaseRequests: vi.fn(),
+  listActiveQrCodes: vi.fn(),
   listCoffeeBeans: vi.fn(),
   listPendingPurchaseRequests: vi.fn(),
   listUsageLogs: vi.fn(),
   saveCoffeeBean: vi.fn(),
+  updateUserDisplayName: vi.fn(),
 }));
 
 vi.mock("./db", () => dbMock);
@@ -28,6 +34,7 @@ function createContext(role: Role = "user"): TrpcContext {
     name: role === "admin" ? "Admin User" : "Regular User",
     loginMethod: "manus",
     role,
+    isTestAccount: 0,
     createdAt: new Date(),
     updatedAt: new Date(),
     lastSignedIn: new Date(),
@@ -66,6 +73,7 @@ describe("coffee ticket routers", () => {
       planCode: "ten",
       paymentMethod: "paypay",
       note: null,
+      isTestRequest: false,
     });
   });
 
@@ -157,5 +165,71 @@ describe("coffee ticket routers", () => {
     expect(result.totalPendingRequests).toBe(2);
     expect(result.activeBean?.name).toBe("Kenya AA");
     expect(dbMock.getUsageStatsSummary).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows users to update their display name", async () => {
+    dbMock.updateUserDisplayName.mockResolvedValue({
+      id: 1,
+      name: "Updated Name",
+      email: "user@example.com",
+    });
+
+    const caller = appRouter.createCaller(createContext("user"));
+    const result = await caller.user.updateDisplayName({ displayName: "Updated Name" });
+
+    expect(result).toEqual({
+      id: 1,
+      name: "Updated Name",
+      email: "user@example.com",
+    });
+    expect(dbMock.updateUserDisplayName).toHaveBeenCalledWith(1, "Updated Name");
+  });
+
+  it("allows admins to generate QR codes", async () => {
+    dbMock.generateQrCode.mockResolvedValue({
+      id: 5,
+      code: "QR_ABC123",
+      accessUrl: "https://example.com/use?qr=QR_ABC123",
+    });
+
+    const caller = appRouter.createCaller(createContext("admin"));
+    const result = await caller.admin.generateQrCode({ baseUrl: "https://example.com" });
+
+    expect(result).toEqual({
+      id: 5,
+      code: "QR_ABC123",
+      accessUrl: "https://example.com/use?qr=QR_ABC123",
+    });
+    expect(dbMock.generateQrCode).toHaveBeenCalledWith(99, "https://example.com");
+  });
+
+  it("blocks regular users from generating QR codes", async () => {
+    const caller = appRouter.createCaller(createContext("user"));
+
+    await expect(caller.admin.generateQrCode({ baseUrl: "https://example.com" })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+  });
+
+  it("allows admins to create test accounts", async () => {
+    dbMock.createTestAccounts.mockResolvedValue({
+      adminAccount: { id: 100, name: "Test Admin", email: "test-admin@lab.local" },
+      userAccount: { id: 101, name: "Test User", email: "test-user@lab.local" },
+    });
+
+    const caller = appRouter.createCaller(createContext("admin"));
+    const result = await caller.admin.createTestAccounts();
+
+    expect(result.adminAccount.name).toBe("Test Admin");
+    expect(result.userAccount.name).toBe("Test User");
+    expect(dbMock.createTestAccounts).toHaveBeenCalledTimes(1);
+  });
+
+  it("blocks regular users from creating test accounts", async () => {
+    const caller = appRouter.createCaller(createContext("user"));
+
+    await expect(caller.admin.createTestAccounts()).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
   });
 });

@@ -8,13 +8,19 @@ import {
   approvePurchaseRequest,
   consumeTicketViaQr,
   createPurchaseRequest,
+  createTestAccounts,
+  deactivateQrCode,
+  generateQrCode,
   getDashboardData,
   getUsageStatsSummary,
+  getUserById,
   getUserPurchaseRequests,
+  listActiveQrCodes,
   listCoffeeBeans,
   listPendingPurchaseRequests,
   listUsageLogs,
   saveCoffeeBean,
+  updateUserDisplayName,
 } from "./db";
 
 const purchaseRequestInput = z.object({
@@ -43,6 +49,16 @@ export const appRouter = router({
       } as const;
     }),
   }),
+  user: router({
+    profile: protectedProcedure.query(async ({ ctx }) => {
+      return getUserById(ctx.user.id);
+    }),
+    updateDisplayName: protectedProcedure
+      .input(z.object({ displayName: z.string().min(1).max(120) }))
+      .mutation(async ({ ctx, input }) => {
+        return updateUserDisplayName(ctx.user.id, input.displayName);
+      }),
+  }),
   ticket: router({
     dashboard: protectedProcedure.query(async ({ ctx }) => {
       return getDashboardData(ctx.user.id);
@@ -58,6 +74,7 @@ export const appRouter = router({
           planCode: input.planCode,
           paymentMethod: input.paymentMethod,
           note: input.note ?? null,
+          isTestRequest: ctx.user.isTestAccount === 1,
         });
       }),
     qrAccess: protectedProcedure.query(async ({ ctx }) => {
@@ -122,6 +139,43 @@ export const appRouter = router({
       .query(async ({ input }) => {
         return listUsageLogs(input.limit);
       }),
+    qrCodes: adminProcedure.query(async () => {
+      return listActiveQrCodes();
+    }),
+    generateQrCode: adminProcedure
+      .input(z.object({ baseUrl: z.string().url() }))
+      .mutation(async ({ ctx, input }) => {
+        try {
+          return await generateQrCode(ctx.user.id, input.baseUrl);
+        } catch (error) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: error instanceof Error ? error.message : "QRコード生成に失敗しました",
+          });
+        }
+      }),
+    deactivateQrCode: adminProcedure
+      .input(z.object({ codeId: z.number().int().positive() }))
+      .mutation(async ({ input }) => {
+        try {
+          return await deactivateQrCode(input.codeId);
+        } catch (error) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: error instanceof Error ? error.message : "QRコード無効化に失敗しました",
+          });
+        }
+      }),
+    createTestAccounts: adminProcedure.mutation(async () => {
+      try {
+        return await createTestAccounts();
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: error instanceof Error ? error.message : "テストアカウント作成に失敗しました",
+        });
+      }
+    }),
   }),
   stats: router({
     summary: adminProcedure.query(async () => {

@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { BarChart3, Coffee, ShieldCheck, Ticket, UserCog } from "lucide-react";
+import { BarChart3, Coffee, Copy, QrCode, ShieldCheck, Ticket, UserCog } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Redirect } from "wouter";
 import { toast } from "sonner";
@@ -30,6 +30,9 @@ export default function AdminPage() {
     }
   );
   const statsQuery = trpc.stats.summary.useQuery(undefined, {
+    enabled: user?.role === "admin",
+  });
+  const qrCodesQuery = trpc.admin.qrCodes.useQuery(undefined, {
     enabled: user?.role === "admin",
   });
 
@@ -69,6 +72,41 @@ export default function AdminPage() {
     },
   });
 
+  const generateQrMutation = trpc.admin.generateQrCode.useMutation({
+    onSuccess: async (data) => {
+      toast.success("QRコードを生成しました。");
+      await utils.admin.qrCodes.invalidate();
+      // QRコードをクリップボードにコピー
+      navigator.clipboard.writeText(data.accessUrl);
+      toast.success("アクセスURLをコピーしました。");
+    },
+    onError: error => {
+      toast.error(error.message || "QRコード生成に失敗しました。");
+    },
+  });
+
+  const deactivateQrMutation = trpc.admin.deactivateQrCode.useMutation({
+    onSuccess: async () => {
+      toast.success("QRコードを無効化しました。");
+      await utils.admin.qrCodes.invalidate();
+    },
+    onError: error => {
+      toast.error(error.message || "QRコード無効化に失敗しました。");
+    },
+  });
+
+  const createTestAccountsMutation = trpc.admin.createTestAccounts.useMutation({
+    onSuccess: (data) => {
+      toast.success("テストアカウントを作成しました。");
+      const accountInfo = `管理者: ${data.adminAccount.name} (${data.adminAccount.email})\nユーザー: ${data.userAccount.name} (${data.userAccount.email})`;
+      navigator.clipboard.writeText(accountInfo);
+      toast.success("アカウント情報をコピーしました。");
+    },
+    onError: error => {
+      toast.error(error.message || "テストアカウント作成に失敗しました。");
+    },
+  });
+
   const activeBean = useMemo(() => beansQuery.data?.find(bean => bean.isActive === 1) ?? null, [beansQuery.data]);
   const uniqueUserCount = useMemo(() => new Set((logsQuery.data ?? []).map(log => log.userId)).size, [logsQuery.data]);
   const recentUsageCount = logsQuery.data?.length ?? 0;
@@ -80,7 +118,7 @@ export default function AdminPage() {
   return (
     <DashboardLayout
       title="管理画面"
-      subtitle="購入申請の手動承認、提供豆の更新、利用履歴の確認、将来のグラフ化に向けた統計APIの確認を一つの画面に集約しています。"
+      subtitle="購入申請の手動承認、提供豆の更新、利用履歴の確認、QRコード管理、テストアカウント作成を一つの画面に集約しています。"
     >
       <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <SummaryCard icon={ShieldCheck} title="未承認申請" value={`${pendingQuery.data?.length ?? statsQuery.data?.totalPendingRequests ?? 0}件`} helper="支払い確認後に承認" />
@@ -93,6 +131,8 @@ export default function AdminPage() {
         <TabsList className="h-auto flex-wrap rounded-[24px] border border-white/60 bg-white/70 p-2 shadow-[0_18px_60px_rgba(67,44,24,0.08)] backdrop-blur-xl">
           <TabsTrigger value="requests" className="rounded-2xl px-4 py-2.5">購入申請承認</TabsTrigger>
           <TabsTrigger value="beans" className="rounded-2xl px-4 py-2.5">豆情報管理</TabsTrigger>
+          <TabsTrigger value="qr" className="rounded-2xl px-4 py-2.5">QRコード管理</TabsTrigger>
+          <TabsTrigger value="test" className="rounded-2xl px-4 py-2.5">テストアカウント</TabsTrigger>
           <TabsTrigger value="logs" className="rounded-2xl px-4 py-2.5">利用ログ</TabsTrigger>
           <TabsTrigger value="stats" className="rounded-2xl px-4 py-2.5">統計API概要</TabsTrigger>
         </TabsList>
@@ -229,6 +269,99 @@ export default function AdminPage() {
           </div>
         </TabsContent>
 
+        <TabsContent value="qr">
+          <Card className="rounded-[28px] border-white/60 bg-white/75 shadow-[0_18px_60px_rgba(67,44,24,0.08)] backdrop-blur-xl">
+            <CardHeader>
+              <CardTitle className="text-2xl font-semibold tracking-tight text-stone-900">QRコード管理</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="rounded-[24px] border border-stone-200/80 bg-white/80 p-5">
+                <p className="mb-4 text-sm text-stone-600">新しいQRコードを生成します。生成されたURLをQRコード化して設置してください。</p>
+                <Button
+                  className="rounded-full bg-stone-900 px-6 hover:bg-stone-800"
+                  disabled={generateQrMutation.isPending}
+                  onClick={() => {
+                    const baseUrl = window.location.origin;
+                    generateQrMutation.mutate({ baseUrl });
+                  }}
+                >
+                  <QrCode className="mr-2 h-4 w-4" />
+                  {generateQrMutation.isPending ? "生成中..." : "新しいQRコードを生成"}
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-stone-700">アクティブなQRコード</p>
+                {qrCodesQuery.isLoading ? (
+                  <div className="space-y-3">
+                    <Skeleton className="h-20 rounded-[22px]" />
+                    <Skeleton className="h-20 rounded-[22px]" />
+                  </div>
+                ) : qrCodesQuery.data?.length ? (
+                  qrCodesQuery.data.map(qr => (
+                    <div key={qr.id} className="rounded-[24px] border border-stone-200/80 bg-white/80 p-5">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex-1">
+                          <p className="text-xs font-mono text-stone-600">コード: {qr.code}</p>
+                          <p className="mt-2 break-all text-xs text-stone-500">{qr.accessUrl}</p>
+                          <p className="mt-2 text-xs text-stone-500">生成日時: {new Date(qr.createdAt).toLocaleString()}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-full border-stone-300 bg-white/70"
+                            onClick={() => {
+                              navigator.clipboard.writeText(qr.accessUrl);
+                              toast.success("URLをコピーしました。");
+                            }}
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-full border-red-300 bg-red-50 text-red-600 hover:bg-red-100"
+                            disabled={deactivateQrMutation.isPending}
+                            onClick={() => deactivateQrMutation.mutate({ codeId: qr.id })}
+                          >
+                            無効化
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <EmptyState text="アクティブなQRコードはありません。新しく生成してください。" />
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="test">
+          <Card className="rounded-[28px] border-white/60 bg-white/75 shadow-[0_18px_60px_rgba(67,44,24,0.08)] backdrop-blur-xl">
+            <CardHeader>
+              <CardTitle className="text-2xl font-semibold tracking-tight text-stone-900">テストアカウント</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="rounded-[24px] border border-amber-200/80 bg-amber-50/50 p-5">
+                <p className="text-sm text-amber-900">
+                  テストアカウント（管理者・一般ユーザー）を作成します。これらのアカウントでの購入申請は無料でチケットが自動付与されます。
+                </p>
+              </div>
+              <Button
+                className="rounded-full bg-stone-900 px-6 hover:bg-stone-800"
+                disabled={createTestAccountsMutation.isPending}
+                onClick={() => createTestAccountsMutation.mutate()}
+              >
+                <UserCog className="mr-2 h-4 w-4" />
+                {createTestAccountsMutation.isPending ? "作成中..." : "テストアカウントを作成"}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="logs">
           <Card className="rounded-[28px] border-white/60 bg-white/75 shadow-[0_18px_60px_rgba(67,44,24,0.08)] backdrop-blur-xl">
             <CardHeader>
@@ -237,8 +370,8 @@ export default function AdminPage() {
             <CardContent className="space-y-3">
               {logsQuery.isLoading ? (
                 <div className="space-y-3">
-                  <Skeleton className="h-24 rounded-[22px]" />
-                  <Skeleton className="h-24 rounded-[22px]" />
+                  <Skeleton className="h-20 rounded-[22px]" />
+                  <Skeleton className="h-20 rounded-[22px]" />
                 </div>
               ) : logsQuery.data?.length ? (
                 logsQuery.data.map(log => (
@@ -246,10 +379,9 @@ export default function AdminPage() {
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <p className="text-base font-semibold text-stone-900">{log.userName || "ユーザー未設定"}</p>
-                        <p className="mt-2 text-sm text-stone-600">利用枚数: {Math.abs(log.delta)}枚</p>
                         <p className="mt-1 text-xs text-stone-500">{new Date(log.createdAt).toLocaleString()}</p>
                       </div>
-                      <Badge className="rounded-full bg-stone-900 px-3 py-1 text-white hover:bg-stone-900">QR利用</Badge>
+                      <Badge className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-900 hover:bg-emerald-100">利用</Badge>
                     </div>
                   </div>
                 ))
@@ -263,28 +395,39 @@ export default function AdminPage() {
         <TabsContent value="stats">
           <Card className="rounded-[28px] border-white/60 bg-white/75 shadow-[0_18px_60px_rgba(67,44,24,0.08)] backdrop-blur-xl">
             <CardHeader>
-              <CardTitle className="text-2xl font-semibold tracking-tight text-stone-900">統計APIの準備状況</CardTitle>
+              <CardTitle className="text-2xl font-semibold tracking-tight text-stone-900">統計API概要</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-[24px] border border-stone-200/80 bg-white/80 p-5">
-                <p className="text-sm text-stone-500">累計消費チケット</p>
-                <p className="mt-3 text-3xl font-semibold tracking-tight text-stone-900">{statsQuery.data?.totalConsumptions ?? 0}</p>
+            <CardContent className="space-y-5">
+              <div className="rounded-[24px] border border-blue-200/80 bg-blue-50/50 p-5">
+                <p className="text-sm text-blue-900">
+                  統計APIエンドポイント <code className="font-mono text-xs">trpc.stats.summary</code> は、利用状況の集計データを返します。将来のグラフ化に向けて、このAPIを基盤に拡張できます。
+                </p>
               </div>
-              <div className="rounded-[24px] border border-stone-200/80 bg-white/80 p-5">
-                <p className="text-sm text-stone-500">承認済み付与チケット</p>
-                <p className="mt-3 text-3xl font-semibold tracking-tight text-stone-900">{statsQuery.data?.totalGrantedTickets ?? 0}</p>
-              </div>
-              <div className="rounded-[24px] border border-stone-200/80 bg-white/80 p-5">
-                <p className="text-sm text-stone-500">ユニーク利用者数</p>
-                <p className="mt-3 text-3xl font-semibold tracking-tight text-stone-900">{uniqueUserCount}</p>
-              </div>
-              <div className="rounded-[24px] border border-stone-200/80 bg-white/80 p-5">
-                <p className="text-sm text-stone-500">直近利用件数</p>
-                <p className="mt-3 text-3xl font-semibold tracking-tight text-stone-900">{recentUsageCount}</p>
-              </div>
-              <div className="md:col-span-2 rounded-[24px] border border-dashed border-stone-300/80 bg-white/50 p-5 text-sm leading-7 text-stone-600">
-                このサマリーは将来のグラフ表示でそのまま利用できる統計APIの基礎データです。現時点では可視化UIは省略し、エンドポイント準備までを実装しています。
-              </div>
+              {statsQuery.isLoading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-20 rounded-[22px]" />
+                  <Skeleton className="h-20 rounded-[22px]" />
+                </div>
+              ) : statsQuery.data ? (
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="rounded-[24px] border border-stone-200/80 bg-white/80 p-5">
+                    <p className="text-xs text-stone-600">累計利用回数</p>
+                    <p className="mt-2 text-3xl font-bold text-stone-900">{statsQuery.data.totalConsumptions}</p>
+                  </div>
+                  <div className="rounded-[24px] border border-stone-200/80 bg-white/80 p-5">
+                    <p className="text-xs text-stone-600">累計付与チケット</p>
+                    <p className="mt-2 text-3xl font-bold text-stone-900">{statsQuery.data.totalGrantedTickets}</p>
+                  </div>
+                  <div className="rounded-[24px] border border-stone-200/80 bg-white/80 p-5">
+                    <p className="text-xs text-stone-600">未承認申請数</p>
+                    <p className="mt-2 text-3xl font-bold text-stone-900">{statsQuery.data.totalPendingRequests}</p>
+                  </div>
+                  <div className="rounded-[24px] border border-stone-200/80 bg-white/80 p-5">
+                    <p className="text-xs text-stone-600">提供中の豆</p>
+                    <p className="mt-2 text-lg font-semibold text-stone-900">{statsQuery.data.activeBean?.name || "未設定"}</p>
+                  </div>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
         </TabsContent>
@@ -293,17 +436,17 @@ export default function AdminPage() {
   );
 }
 
-function SummaryCard({ icon: Icon, title, value, helper }: { icon: typeof UserCog; title: string; value: string; helper: string }) {
+function SummaryCard({ icon: Icon, title, value, helper }: { icon: any; title: string; value: string; helper: string }) {
   return (
-    <Card className="rounded-[28px] border-white/60 bg-white/72 shadow-[0_18px_60px_rgba(67,44,24,0.08)] backdrop-blur-xl">
-      <CardContent className="flex items-start justify-between gap-4 p-6">
-        <div>
-          <p className="text-sm text-stone-500">{title}</p>
-          <p className="mt-3 text-2xl font-semibold tracking-tight text-stone-900">{value}</p>
-          <p className="mt-2 text-xs text-stone-500">{helper}</p>
+    <Card className="rounded-[28px] border-white/60 bg-white/75 shadow-[0_18px_60px_rgba(67,44,24,0.08)] backdrop-blur-xl">
+      <CardContent className="flex items-start gap-4 pt-6">
+        <div className="rounded-2xl bg-stone-100 p-3">
+          <Icon className="h-6 w-6 text-stone-700" />
         </div>
-        <div className="rounded-full bg-amber-100 p-3 text-amber-900">
-          <Icon className="h-5 w-5" />
+        <div className="flex-1">
+          <p className="text-xs font-medium uppercase tracking-wider text-stone-600">{title}</p>
+          <p className="mt-2 text-2xl font-bold text-stone-900">{value}</p>
+          <p className="mt-1 text-xs text-stone-500">{helper}</p>
         </div>
       </CardContent>
     </Card>
@@ -311,5 +454,9 @@ function SummaryCard({ icon: Icon, title, value, helper }: { icon: typeof UserCo
 }
 
 function EmptyState({ text }: { text: string }) {
-  return <div className="rounded-[24px] border border-dashed border-stone-300/80 bg-white/50 p-6 text-sm leading-7 text-stone-600">{text}</div>;
+  return (
+    <div className="rounded-[24px] border border-dashed border-stone-300 bg-stone-50/50 py-12 text-center">
+      <p className="text-sm text-stone-600">{text}</p>
+    </div>
+  );
 }

@@ -22,9 +22,11 @@ export const users = mysqlTable("users", {
   /** Manus OAuth identifier (openId) returned from the OAuth callback. Unique per user. */
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
+  displayName: text("displayName"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  isTestAccount: tinyint("isTestAccount").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -63,6 +65,7 @@ export const purchaseRequests = mysqlTable("purchaseRequests", {
     .default("pending")
     .notNull(),
   note: text("note"),
+  isTestRequest: tinyint("isTestRequest").default(0).notNull(),
   requestedAt: timestamp("requestedAt").defaultNow().notNull(),
   approvedAt: timestamp("approvedAt"),
   approvedByUserId: int("approvedByUserId").references(() => users.id),
@@ -81,6 +84,17 @@ export const ticketTransactions = mysqlTable("ticketTransactions", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+export const qrCodes = mysqlTable("qrCodes", {
+  id: int("id").autoincrement().primaryKey(),
+  code: varchar("code", { length: 64 }).notNull().unique(),
+  accessUrl: text("accessUrl").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  createdByUserId: int("createdByUserId")
+    .notNull()
+    .references(() => users.id),
+  isActive: tinyint("isActive").default(1).notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
@@ -95,3 +109,6 @@ export type InsertPurchaseRequest = typeof purchaseRequests.$inferInsert;
 
 export type TicketTransaction = typeof ticketTransactions.$inferSelect;
 export type InsertTicketTransaction = typeof ticketTransactions.$inferInsert;
+
+export type QrCode = typeof qrCodes.$inferSelect;
+export type InsertQrCode = typeof qrCodes.$inferInsert;
