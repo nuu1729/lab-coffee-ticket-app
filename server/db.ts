@@ -720,3 +720,19 @@ export async function listTestAccounts() {
     .where(eq(users.isTestAccount, 1))
     .orderBy(desc(users.createdAt));
 }
+
+export async function deleteTestAccounts() {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+
+  // Delete all test accounts and their related data
+  const testAccounts = await db.select({ id: users.id }).from(users).where(eq(users.isTestAccount, 1));
+
+  for (const account of testAccounts) {
+    await deleteUser(account.id);
+  }
+
+  return { deletedCount: testAccounts.length };
+}

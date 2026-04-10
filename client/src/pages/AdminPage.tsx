@@ -4,7 +4,7 @@ import QrCodeDisplay from "@/components/QrCodeDisplay";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -128,9 +128,31 @@ export default function AdminPage() {
       const accountInfo = `管理者: ${data.adminAccount.name} (${data.adminAccount.email})\nユーザー: ${data.userAccount.name} (${data.userAccount.email})`;
       navigator.clipboard.writeText(accountInfo);
       toast.success("アカウント情報をコピーしました。");
+      utils.admin.testAccounts.invalidate();
     },
     onError: error => {
       toast.error(error.message || "テストアカウント作成に失敗しました。");
+    },
+  });
+
+  const deleteTestAccountsMutation = trpc.admin.deleteTestAccounts.useMutation({
+    onSuccess: () => {
+      toast.success("テストアカウントを削除しました。");
+      utils.admin.testAccounts.invalidate();
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "テストアカウント削除に失敗しました。");
+    },
+  });
+
+  const deleteUserMutation = trpc.admin.deleteUser.useMutation({
+    onSuccess: () => {
+      toast.success("ユーザーを削除しました。");
+      utils.admin.userUsageStats.invalidate();
+      utils.admin.usageLogs.invalidate();
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "ユーザー削除に失敗しました。");
     },
   });
 
@@ -402,14 +424,46 @@ export default function AdminPage() {
                   テストアカウント（管理者・一般ユーザー）を作成します。これらのアカウントでの購入申請は無料でチケットが自動付与されます。
                 </p>
               </div>
-              <Button
-                className="rounded-full bg-stone-900 px-6 hover:bg-stone-800"
-                disabled={createTestAccountsMutation.isPending}
-                onClick={() => createTestAccountsMutation.mutate()}
-              >
-                <UserCog className="mr-2 h-4 w-4" />
-                {createTestAccountsMutation.isPending ? "作成中..." : "テストアカウントを作成"}
-              </Button>
+              <div className="flex gap-3">
+                <Button
+                  className="rounded-full bg-stone-900 px-6 hover:bg-stone-800"
+                  disabled={createTestAccountsMutation.isPending}
+                  onClick={() => createTestAccountsMutation.mutate()}
+                >
+                  <UserCog className="mr-2 h-4 w-4" />
+                  {createTestAccountsMutation.isPending ? "作成中..." : "テストアカウントを作成"}
+                </Button>
+                {testAccountsQuery.data?.length ? (
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="destructive" className="rounded-full px-6">
+                        一括削除
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>テストアカウントを削除しますか？</DialogTitle>
+                        <DialogDescription>
+                          すべてのテストアカウント（{testAccountsQuery.data.length}件）と関連データが削除されます。この操作は取り消せません。
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="flex gap-3 justify-end">
+                        <DialogClose asChild>
+                          <Button variant="outline" className="rounded-full">キャンセル</Button>
+                        </DialogClose>
+                        <Button
+                          variant="destructive"
+                          className="rounded-full"
+                          disabled={deleteTestAccountsMutation.isPending}
+                          onClick={() => deleteTestAccountsMutation.mutate()}
+                        >
+                          {deleteTestAccountsMutation.isPending ? "削除中..." : "削除"}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                ) : null}
+              </div>
               {testAccountsQuery.isLoading ? (
                 <div className="space-y-3">
                   <Skeleton className="h-20 rounded-[22px]" />
@@ -494,6 +548,7 @@ export default function AdminPage() {
                         <th className="px-4 py-3 text-center font-semibold text-stone-900">合計利用回数</th>
                         <th className="px-4 py-3 text-center font-semibold text-stone-900">購入枚数</th>
                         <th className="px-4 py-3 text-center font-semibold text-stone-900">現在残量</th>
+                        <th className="px-4 py-3 text-center font-semibold text-stone-900"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -507,6 +562,36 @@ export default function AdminPage() {
                           <td className="px-4 py-3 text-center text-stone-900">{stat.totalConsumptions}</td>
                           <td className="px-4 py-3 text-center text-stone-900">{stat.totalPurchasedTickets}</td>
                           <td className="px-4 py-3 text-center font-semibold text-stone-900">{stat.currentBalance}</td>
+                          <td className="px-4 py-3 text-center">
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50">
+                                  ×
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>ユーザーを削除しますか？</DialogTitle>
+                                  <DialogDescription>
+                                    {displayName || "ユーザー"}を削除します。この操作は取り消せません。
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <div className="flex gap-3 justify-end">
+                                  <DialogClose asChild>
+                                    <Button variant="outline" className="rounded-full">キャンセル</Button>
+                                  </DialogClose>
+                                  <Button
+                                    variant="destructive"
+                                    className="rounded-full"
+                                    disabled={deleteUserMutation.isPending}
+                                    onClick={() => deleteUserMutation.mutate({ userId: stat.userId })}
+                                  >
+                                    {deleteUserMutation.isPending ? "削除中..." : "削除"}
+                                  </Button>
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          </td>
                         </tr>
                       );
                       })}

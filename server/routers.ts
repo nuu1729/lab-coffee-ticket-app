@@ -10,6 +10,7 @@ import {
   createPurchaseRequest,
   createTestAccounts,
   deactivateQrCode,
+  deleteTestAccounts,
   deleteUser,
   deleteUsageLog,
   generateQrCode,
@@ -200,6 +201,28 @@ export const appRouter = router({
         });
       }
     }),
+    deleteTestAccounts: adminProcedure.mutation(async () => {
+      try {
+        return await deleteTestAccounts();
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: error instanceof Error ? error.message : "テストアカウント削除に失敗しました",
+        });
+      }
+    }),
+    deleteUser: adminProcedure
+      .input(z.object({ userId: z.number().int().positive() }))
+      .mutation(async ({ input }) => {
+        try {
+          return await deleteUser(input.userId);
+        } catch (error) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: error instanceof Error ? error.message : "ユーザー削除に失敗しました",
+          });
+        }
+      }),
   }),
   stats: router({
     summary: adminProcedure.query(async () => {
