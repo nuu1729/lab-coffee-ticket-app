@@ -1,4 +1,12 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import {
+  int,
+  mysqlEnum,
+  mysqlTable,
+  text,
+  timestamp,
+  tinyint,
+  varchar,
+} from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -22,7 +30,68 @@ export const users = mysqlTable("users", {
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
 });
 
+export const coffeeBeans = mysqlTable("coffeeBeans", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 120 }).notNull(),
+  features: text("features"),
+  priceYen: int("priceYen").notNull(),
+  isActive: tinyint("isActive").default(1).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const ticketWallets = mysqlTable("ticketWallets", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId")
+    .notNull()
+    .unique()
+    .references(() => users.id),
+  balance: int("balance").default(0).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const purchaseRequests = mysqlTable("purchaseRequests", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId")
+    .notNull()
+    .references(() => users.id),
+  planCode: mysqlEnum("planCode", ["ten", "twentyFive"]).notNull(),
+  ticketCount: int("ticketCount").notNull(),
+  priceYen: int("priceYen").notNull(),
+  paymentMethod: mysqlEnum("paymentMethod", ["paypay", "cash"]).notNull(),
+  status: mysqlEnum("status", ["pending", "approved", "rejected"])
+    .default("pending")
+    .notNull(),
+  note: text("note"),
+  requestedAt: timestamp("requestedAt").defaultNow().notNull(),
+  approvedAt: timestamp("approvedAt"),
+  approvedByUserId: int("approvedByUserId").references(() => users.id),
+});
+
+export const ticketTransactions = mysqlTable("ticketTransactions", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId")
+    .notNull()
+    .references(() => users.id),
+  delta: int("delta").notNull(),
+  type: mysqlEnum("type", ["purchaseGrant", "consume", "adminAdjust"]).notNull(),
+  sourceType: mysqlEnum("sourceType", ["purchaseRequest", "qrUse", "adminAction"]).notNull(),
+  purchaseRequestId: int("purchaseRequestId").references(() => purchaseRequests.id),
+  performedByUserId: int("performedByUserId").references(() => users.id),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// TODO: Add your tables here
+export type CoffeeBean = typeof coffeeBeans.$inferSelect;
+export type InsertCoffeeBean = typeof coffeeBeans.$inferInsert;
+
+export type TicketWallet = typeof ticketWallets.$inferSelect;
+export type InsertTicketWallet = typeof ticketWallets.$inferInsert;
+
+export type PurchaseRequest = typeof purchaseRequests.$inferSelect;
+export type InsertPurchaseRequest = typeof purchaseRequests.$inferInsert;
+
+export type TicketTransaction = typeof ticketTransactions.$inferSelect;
+export type InsertTicketTransaction = typeof ticketTransactions.$inferInsert;

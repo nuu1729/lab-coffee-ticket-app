@@ -1,9 +1,35 @@
-import { eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
-import { ENV } from './_core/env';
+import {
+  coffeeBeans,
+  InsertCoffeeBean,
+  InsertUser,
+  purchaseRequests,
+  ticketTransactions,
+  ticketWallets,
+  users,
+} from "../drizzle/schema";
+import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
+
+export const TICKET_PLAN_DEFINITIONS = {
+  ten: {
+    code: "ten",
+    label: "10回 / 500円",
+    ticketCount: 10,
+    priceYen: 500,
+  },
+  twentyFive: {
+    code: "twentyFive",
+    label: "25回 / 1000円",
+    ticketCount: 25,
+    priceYen: 1000,
+  },
+} as const;
+
+export type TicketPlanCode = keyof typeof TICKET_PLAN_DEFINITIONS;
+export type PaymentMethod = "paypay" | "cash";
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
@@ -16,6 +42,10 @@ export async function getDb() {
     }
   }
   return _db;
+}
+
+export function getTicketPlanDefinition(planCode: TicketPlanCode) {
+  return TICKET_PLAN_DEFINITIONS[planCode];
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {
@@ -56,8 +86,8 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       values.role = user.role;
       updateSet.role = user.role;
     } else if (user.openId === ENV.ownerOpenId) {
-      values.role = 'admin';
-      updateSet.role = 'admin';
+      values.role = "admin";
+      updateSet.role = "admin";
     }
 
     if (!values.lastSignedIn) {
@@ -89,4 +119,334 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+async function ensureTicketWalletRecord(userId: number, dbClient: any) {
+  if (!dbClient) {
+    throw new Error("Database is not available");
+  }
+
+  const existing = await dbClient
+    .select()
+    .from(ticketWallets)
+    .where(eq(ticketWallets.userId, userId))
+    .limit(1);
+
+  if (existing[0]) {
+    return existing[0];
+  }
+
+  await dbClient.insert(ticketWallets).values({ userId, balance: 0 });
+
+  const created = await dbClient
+    .select()
+    .from(ticketWallets)
+    .where(eq(ticketWallets.userId, userId))
+    .limit(1);
+
+  return created[0]!;
+}
+
+export async function getDashboardData(userId: number) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+
+  const wallet = await ensureTicketWalletRecord(userId, db);
+  const activeBeans = await db
+    .select()
+    .from(coffeeBeans)
+    .where(eq(coffeeBeans.isActive, 1))
+    .orderBy(desc(coffeeBeans.updatedAt), desc(coffeeBeans.id));
+
+  const recentRequests = await db
+    .select()
+    .from(purchaseRequests)
+    .where(eq(purchaseRequests.userId, userId))
+    .orderBy(desc(purchaseRequests.requestedAt), desc(purchaseRequests.id))
+    .limit(5);
+
+  return {
+    wallet,
+    activeBean: activeBeans[0] ?? null,
+    recentRequests,
+    plans: Object.values(TICKET_PLAN_DEFINITIONS),
+  };
+}
+
+export async function createPurchaseRequest(input: {
+  userId: number;
+  planCode: TicketPlanCode;
+  paymentMethod: PaymentMethod;
+  note?: string | null;
+}) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+
+  const plan = getTicketPlanDefinition(input.planCode);
+
+  await db.insert(purchaseRequests).values({
+    userId: input.userId,
+    planCode: input.planCode,
+    ticketCount: plan.ticketCount,
+    priceYen: plan.priceYen,
+    paymentMethod: input.paymentMethod,
+    note: input.note ?? null,
+    status: "pending",
+  });
+
+  return {
+    success: true as const,
+    plan,
+  };
+}
+
+export async function getUserPurchaseRequests(userId: number) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+
+  return db
+    .select()
+    .from(purchaseRequests)
+    .where(eq(purchaseRequests.userId, userId))
+    .orderBy(desc(purchaseRequests.requestedAt), desc(purchaseRequests.id));
+}
+
+export async function consumeTicketViaQr(userId: number) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+
+  return db.transaction(async tx => {
+    const wallet = await ensureTicketWalletRecord(userId, tx);
+
+    if (wallet.balance <= 0) {
+      throw new Error("利用可能なチケットがありません");
+    }
+
+    await tx
+      .update(ticketWallets)
+      .set({
+        balance: sql`${ticketWallets.balance} - 1`,
+      })
+      .where(eq(ticketWallets.userId, userId));
+
+    await tx.insert(ticketTransactions).values({
+      userId,
+      delta: -1,
+      type: "consume",
+      sourceType: "qrUse",
+      performedByUserId: userId,
+    });
+
+    const updatedWallet = await tx
+      .select()
+      .from(ticketWallets)
+      .where(eq(ticketWallets.userId, userId))
+      .limit(1);
+
+    return {
+      success: true as const,
+      balance: updatedWallet[0]?.balance ?? 0,
+      usedAt: Date.now(),
+    };
+  });
+}
+
+export async function listPendingPurchaseRequests() {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+
+  return db
+    .select({
+      id: purchaseRequests.id,
+      userId: purchaseRequests.userId,
+      planCode: purchaseRequests.planCode,
+      ticketCount: purchaseRequests.ticketCount,
+      priceYen: purchaseRequests.priceYen,
+      paymentMethod: purchaseRequests.paymentMethod,
+      status: purchaseRequests.status,
+      note: purchaseRequests.note,
+      requestedAt: purchaseRequests.requestedAt,
+      approvedAt: purchaseRequests.approvedAt,
+      approvedByUserId: purchaseRequests.approvedByUserId,
+      requesterName: users.name,
+      requesterEmail: users.email,
+    })
+    .from(purchaseRequests)
+    .innerJoin(users, eq(purchaseRequests.userId, users.id))
+    .where(eq(purchaseRequests.status, "pending"))
+    .orderBy(desc(purchaseRequests.requestedAt), desc(purchaseRequests.id));
+}
+
+export async function approvePurchaseRequest(input: { requestId: number; adminUserId: number }) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+
+  return db.transaction(async tx => {
+    const requestRows = await tx
+      .select()
+      .from(purchaseRequests)
+      .where(and(eq(purchaseRequests.id, input.requestId), eq(purchaseRequests.status, "pending")))
+      .limit(1);
+
+    const request = requestRows[0];
+    if (!request) {
+      throw new Error("承認対象の購入申請が見つかりません");
+    }
+
+    const wallet = await ensureTicketWalletRecord(request.userId, tx);
+
+    await tx
+      .update(purchaseRequests)
+      .set({
+        status: "approved",
+        approvedAt: new Date(),
+        approvedByUserId: input.adminUserId,
+      })
+      .where(eq(purchaseRequests.id, input.requestId));
+
+    await tx
+      .update(ticketWallets)
+      .set({
+        balance: wallet.balance + request.ticketCount,
+      })
+      .where(eq(ticketWallets.userId, request.userId));
+
+    await tx.insert(ticketTransactions).values({
+      userId: request.userId,
+      delta: request.ticketCount,
+      type: "purchaseGrant",
+      sourceType: "purchaseRequest",
+      purchaseRequestId: request.id,
+      performedByUserId: input.adminUserId,
+    });
+
+    const updatedWallet = await tx
+      .select()
+      .from(ticketWallets)
+      .where(eq(ticketWallets.userId, request.userId))
+      .limit(1);
+
+    return {
+      success: true as const,
+      requestId: request.id,
+      grantedTickets: request.ticketCount,
+      balance: updatedWallet[0]?.balance ?? wallet.balance + request.ticketCount,
+    };
+  });
+}
+
+export async function listCoffeeBeans() {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+
+  return db.select().from(coffeeBeans).orderBy(desc(coffeeBeans.isActive), desc(coffeeBeans.updatedAt));
+}
+
+export async function saveCoffeeBean(input: InsertCoffeeBean) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+
+  if (input.id) {
+    await db
+      .update(coffeeBeans)
+      .set({
+        name: input.name,
+        features: input.features ?? null,
+        priceYen: input.priceYen,
+        isActive: input.isActive ?? 1,
+      })
+      .where(eq(coffeeBeans.id, input.id));
+
+    const updated = await db.select().from(coffeeBeans).where(eq(coffeeBeans.id, input.id)).limit(1);
+    return updated[0] ?? null;
+  }
+
+  await db.insert(coffeeBeans).values({
+    name: input.name,
+    features: input.features ?? null,
+    priceYen: input.priceYen,
+    isActive: input.isActive ?? 1,
+  });
+
+  const created = await db
+    .select()
+    .from(coffeeBeans)
+    .orderBy(desc(coffeeBeans.id))
+    .limit(1);
+
+  return created[0] ?? null;
+}
+
+export async function listUsageLogs(limit = 100) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+
+  return db
+    .select({
+      id: ticketTransactions.id,
+      userId: ticketTransactions.userId,
+      delta: ticketTransactions.delta,
+      type: ticketTransactions.type,
+      sourceType: ticketTransactions.sourceType,
+      createdAt: ticketTransactions.createdAt,
+      userName: users.name,
+      userEmail: users.email,
+    })
+    .from(ticketTransactions)
+    .innerJoin(users, eq(ticketTransactions.userId, users.id))
+    .where(eq(ticketTransactions.type, "consume"))
+    .orderBy(desc(ticketTransactions.createdAt), desc(ticketTransactions.id))
+    .limit(limit);
+}
+
+export async function getUsageStatsSummary() {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+
+  const [summary] = await db
+    .select({
+      totalConsumptions: sql<number>`COALESCE(SUM(CASE WHEN ${ticketTransactions.type} = 'consume' THEN 1 ELSE 0 END), 0)`,
+      totalGrantedTickets: sql<number>`COALESCE(SUM(CASE WHEN ${ticketTransactions.type} = 'purchaseGrant' THEN ${ticketTransactions.delta} ELSE 0 END), 0)`,
+      totalPendingRequests: sql<number>`COALESCE(SUM(CASE WHEN ${purchaseRequests.status} = 'pending' THEN 1 ELSE 0 END), 0)`,
+    })
+    .from(ticketTransactions)
+    .leftJoin(purchaseRequests, eq(ticketTransactions.purchaseRequestId, purchaseRequests.id));
+
+  const activeBeans = await db
+    .select({
+      id: coffeeBeans.id,
+      name: coffeeBeans.name,
+      priceYen: coffeeBeans.priceYen,
+      updatedAt: coffeeBeans.updatedAt,
+    })
+    .from(coffeeBeans)
+    .where(eq(coffeeBeans.isActive, 1))
+    .orderBy(desc(coffeeBeans.updatedAt), desc(coffeeBeans.id))
+    .limit(1);
+
+  return {
+    totalConsumptions: Number(summary?.totalConsumptions ?? 0),
+    totalGrantedTickets: Number(summary?.totalGrantedTickets ?? 0),
+    totalPendingRequests: Number(summary?.totalPendingRequests ?? 0),
+    activeBean: activeBeans[0] ?? null,
+    generatedAt: Date.now(),
+  };
+}
