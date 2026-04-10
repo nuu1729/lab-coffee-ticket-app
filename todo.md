@@ -39,3 +39,9 @@
   - [x] AdminPageの利用者一覧表示をdisplayNameを使用するように修正
   - [x] DashboardPageのアカウント情報表示をdisplayNameを使用するように修正
   - [x] 全テストが引き続き合格することを確認
+
+- [x] 利用者一覧のユーザー名を利用ログと同じ方式で取得・表示する
+  - [x] db.tsのgetUserUsageStats関数の現在の実装を確認
+  - [x] getUserUsageStats関数がdisplayNameを返するようにdb.tsを修正
+  - [x] AdminPageの利用者一覧がdisplayNameを正しく表示していることを確認
+  - [x] 全テストが引き続き合格することを確認
