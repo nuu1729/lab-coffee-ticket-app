@@ -31,3 +31,11 @@
   - [x] 利用者一覧モーダルを実装し、ユニーク利用者の一覧を表示
   - [x] 各利用者の合計利用回数、チケット購入枚数、現在残量を表示
 - [x] 全テストが引き続き合格することを確認する
+
+- [x] アカウント名（displayName）を全画面で統一表示する
+  - [x] db.tsのlistUsageLogs関数を修正し、displayNameを返するようにする
+  - [x] db.tsのgetUserUsageStats関数を確認し、displayNameが正しく返されているか確認
+  - [x] AdminPageの利用ログ表示をdisplayNameを使用するように修正
+  - [x] AdminPageの利用者一覧表示をdisplayNameを使用するように修正
+  - [x] DashboardPageのアカウント情報表示をdisplayNameを使用するように修正
+  - [x] 全テストが引き続き合格することを確認

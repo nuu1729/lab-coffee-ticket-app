@@ -455,6 +455,7 @@ export async function listUsageLogs(limit = 100) {
       createdAt: ticketTransactions.createdAt,
       userName: users.name,
       userEmail: users.email,
+      displayName: users.displayName,
     })
     .from(ticketTransactions)
     .innerJoin(users, eq(ticketTransactions.userId, users.id))

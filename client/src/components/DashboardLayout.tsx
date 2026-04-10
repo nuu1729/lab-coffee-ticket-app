@@ -238,12 +238,12 @@ function DashboardLayoutContent({ children, title, subtitle, setSidebarWidth }: 
                     <div className="flex items-center gap-3">
                       <Avatar className="h-11 w-11 border border-stone-200/80 bg-stone-100">
                         <AvatarFallback className="bg-stone-200 text-sm font-semibold text-stone-700">
-                          {user?.name?.charAt(0)?.toUpperCase() ?? "U"}
+                          {(user?.displayName || user?.name)?.charAt(0)?.toUpperCase() ?? "U"}
                         </AvatarFallback>
                       </Avatar>
                       {!isCollapsed ? (
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-stone-900">{user?.name || "研究室メンバー"}</p>
+                          <p className="truncate text-sm font-semibold text-stone-900">{user?.displayName || user?.name || "研究室メンバー"}</p>
                           <p className="mt-1 truncate text-xs text-stone-500">{user?.email || "メール未設定"}</p>
                           <Badge className="mt-2 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-medium text-amber-900 hover:bg-amber-100">
                             {user?.role === "admin" ? "管理者" : "一般ユーザー"}

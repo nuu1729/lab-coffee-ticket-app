@@ -414,7 +414,7 @@ export default function AdminPage() {
                   <div key={log.id} className="rounded-[24px] border border-stone-200/80 bg-white/80 p-5">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <p className="text-base font-semibold text-stone-900">{log.userName || "ユーザー未設定"}</p>
+                        <p className="text-base font-semibold text-stone-900">{log.displayName || log.userName || "ユーザー未設定"}</p>
                         <p className="mt-1 text-xs text-stone-500">{new Date(log.createdAt).toLocaleString()}</p>
                       </div>
                       <Badge className="rounded-full bg-emerald-100 px-3 py-1 text-emerald-900 hover:bg-emerald-100">利用</Badge>

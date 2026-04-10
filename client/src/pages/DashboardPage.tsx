@@ -49,7 +49,7 @@ export default function DashboardPage() {
           <CardContent className="flex items-center justify-between gap-4 pt-6">
             <div>
               <p className="text-xs uppercase tracking-[0.28em] text-stone-500">アカウント</p>
-              <p className="mt-2 text-lg font-semibold text-stone-900">{user?.name || "ユーザー未設定"}</p>
+              <p className="mt-2 text-lg font-semibold text-stone-900">{user?.displayName || user?.name || "ユーザー未設定"}</p>
               <p className="mt-1 text-xs text-stone-500">{user?.email}</p>
             </div>
             <Dialog open={isEditingName} onOpenChange={setIsEditingName}>
