@@ -515,7 +515,15 @@ export async function generateQrCode(adminUserId: number, baseUrl: string) {
     isActive: 1,
   });
 
+  // Retrieve the inserted QR code to get its ID
+  const insertedQr = await db
+    .select()
+    .from(qrCodes)
+    .where(eq(qrCodes.code, code))
+    .limit(1);
+
   return {
+    id: insertedQr[0]?.id || 0,
     code,
     accessUrl,
     createdAt: new Date(),
