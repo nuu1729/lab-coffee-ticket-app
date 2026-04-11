@@ -99,6 +99,26 @@ export default function AdminPage() {
     },
   });
 
+  const deleteBeanMutation = trpc.admin.deleteCoffeeBean.useMutation({
+    onSuccess: async () => {
+      toast.success("コーヒー豆を削除しました。");
+      await Promise.all([utils.admin.coffeeBeans.invalidate(), utils.ticket.dashboard.invalidate(), utils.ticket.qrAccess.invalidate()]);
+    },
+    onError: error => {
+      toast.error(error.message || "豆情報の削除に失敗しました。");
+    },
+  });
+
+  const updateUserRoleMutation = trpc.admin.updateUserRole.useMutation({
+    onSuccess: async () => {
+      toast.success("ユーザー権限を更新しました。");
+      await utils.admin.userUsageStats.invalidate();
+    },
+    onError: error => {
+      toast.error(error.message || "ユーザー権限の更新に失敗しました。");
+    },
+  });
+
   const generateQrMutation = trpc.admin.generateQrCode.useMutation({
     onSuccess: async (data) => {
       toast.success("QRコードを生成しました。");
@@ -295,19 +315,56 @@ export default function AdminPage() {
                           <p className="mt-2 text-sm leading-7 text-stone-600">{bean.features || "特徴は未登録です。"}</p>
                           <p className="mt-2 text-sm text-stone-500">価格: ¥{bean.priceYen.toLocaleString()}</p>
                         </div>
-                        <Button
-                          variant="outline"
-                          className="rounded-full border-stone-300 bg-white/70"
-                          onClick={() => {
-                            setEditingBeanId(bean.id);
-                            setBeanName(bean.name);
-                            setBeanFeatures(bean.features || "");
-                            setBeanPriceYen(String(bean.priceYen));
-                            setBeanIsActive(bean.isActive === 1);
-                          }}
-                        >
-                          編集
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            className="rounded-full border-stone-300 bg-white/70"
+                            onClick={() => {
+                              setEditingBeanId(bean.id);
+                              setBeanName(bean.name);
+                              setBeanFeatures(bean.features || "");
+                              setBeanPriceYen(String(bean.priceYen));
+                              setBeanIsActive(bean.isActive === 1);
+                            }}
+                          >
+                            編集
+                          </Button>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                className="rounded-full"
+                                disabled={deleteBeanMutation.isPending}
+                              >
+                                ×
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>豆を削除しますか?</DialogTitle>
+                                <DialogDescription>
+                                  「{bean.name}」を削除します。この操作は取り消せません。
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="flex gap-3 justify-end">
+                                <DialogClose asChild>
+                                  <Button variant="outline" className="rounded-full">キャンセル</Button>
+                                </DialogClose>
+                                <Button
+                                  variant="destructive"
+                                  className="rounded-full"
+                                  disabled={deleteBeanMutation.isPending}
+                                  onClick={() => {
+                                    deleteBeanMutation.mutate({ beanId: bean.id });
+                                  }}
+                                >
+                                  削除する
+                                </Button>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
                       </div>
                     </div>
                   ))
@@ -548,6 +605,7 @@ export default function AdminPage() {
                         <th className="px-4 py-3 text-center font-semibold text-stone-900">合計利用回数</th>
                         <th className="px-4 py-3 text-center font-semibold text-stone-900">購入枚数</th>
                         <th className="px-4 py-3 text-center font-semibold text-stone-900">現在残量</th>
+                        <th className="px-4 py-3 text-center font-semibold text-stone-900">権限</th>
                         <th className="px-4 py-3 text-center font-semibold text-stone-900"></th>
                       </tr>
                     </thead>
@@ -562,6 +620,19 @@ export default function AdminPage() {
                           <td className="px-4 py-3 text-center text-stone-900">{stat.totalConsumptions}</td>
                           <td className="px-4 py-3 text-center text-stone-900">{stat.totalPurchasedTickets}</td>
                           <td className="px-4 py-3 text-center font-semibold text-stone-900">{stat.currentBalance}</td>
+                          <td className="px-4 py-3 text-center">
+                            <select
+                              value={stat.role || "user"}
+                              onChange={(e) => {
+                                updateUserRoleMutation.mutate({ userId: stat.userId, role: e.target.value as "admin" | "user" });
+                              }}
+                              disabled={updateUserRoleMutation.isPending}
+                              className="rounded border border-stone-200 px-2 py-1 text-xs"
+                            >
+                              <option value="user">ユーザー</option>
+                              <option value="admin">管理者</option>
+                            </select>
+                          </td>
                           <td className="px-4 py-3 text-center">
                             <Dialog>
                               <DialogTrigger asChild>

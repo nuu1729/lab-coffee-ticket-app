@@ -274,3 +274,39 @@ describe("coffee ticket routers", () => {
       code: "FORBIDDEN",
     });
   });
+
+  it("allows admins to delete coffee beans", async () => {
+    dbMock.deleteCoffeeBean = vi.fn().mockResolvedValue({ success: true });
+
+    const caller = appRouter.createCaller(createContext("admin"));
+    const result = await caller.admin.deleteCoffeeBean({ beanId: 1 });
+
+    expect(result).toEqual({ success: true });
+    expect(dbMock.deleteCoffeeBean).toHaveBeenCalledWith(1);
+  });
+
+  it("blocks regular users from deleting coffee beans", async () => {
+    const caller = appRouter.createCaller(createContext("user"));
+
+    await expect(caller.admin.deleteCoffeeBean({ beanId: 1 })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+  });
+
+  it("allows admins to update user roles", async () => {
+    dbMock.updateUserRole = vi.fn().mockResolvedValue({ success: true });
+
+    const caller = appRouter.createCaller(createContext("admin"));
+    const result = await caller.admin.updateUserRole({ userId: 1, role: "admin" });
+
+    expect(result).toEqual({ success: true });
+    expect(dbMock.updateUserRole).toHaveBeenCalledWith(1, "admin");
+  });
+
+  it("blocks regular users from updating user roles", async () => {
+    const caller = appRouter.createCaller(createContext("user"));
+
+    await expect(caller.admin.updateUserRole({ userId: 1, role: "admin" })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+  });

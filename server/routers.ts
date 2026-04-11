@@ -10,11 +10,14 @@ import {
   createPurchaseRequest,
   createTestAccounts,
   deactivateQrCode,
+  deleteCoffeeBean,
   deleteTestAccounts,
   deleteUser,
   deleteUsageLog,
   generateQrCode,
   getDashboardData,
+  getDb,
+  getTicketPlanDefinition,
   getUsageStatsSummary,
   getUserById,
   getUserPurchaseRequests,
@@ -26,6 +29,7 @@ import {
   listUsageLogs,
   saveCoffeeBean,
   updateUserDisplayName,
+  updateUserRole,
 } from "./db";
 
 const purchaseRequestInput = z.object({
@@ -220,6 +224,30 @@ export const appRouter = router({
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
             message: error instanceof Error ? error.message : "ユーザー削除に失敗しました",
+          });
+        }
+      }),
+    deleteCoffeeBean: adminProcedure
+      .input(z.object({ beanId: z.number().int().positive() }))
+      .mutation(async ({ input }) => {
+        try {
+          return await deleteCoffeeBean(input.beanId);
+        } catch (error) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: error instanceof Error ? error.message : "豆情報の削除に失敗しました",
+          });
+        }
+      }),
+    updateUserRole: adminProcedure
+      .input(z.object({ userId: z.number().int().positive(), role: z.enum(["admin", "user"]) }))
+      .mutation(async ({ input }) => {
+        try {
+          return await updateUserRole(input.userId, input.role);
+        } catch (error) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: error instanceof Error ? error.message : "ユーザー権限の更新に失敗しました",
           });
         }
       }),

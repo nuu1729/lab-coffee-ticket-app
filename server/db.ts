@@ -645,6 +645,7 @@ export async function getUserUsageStats() {
       userName: users.name,
       userEmail: users.email,
       displayName: users.displayName,
+      role: users.role,
       totalConsumptions: sql<number>`COALESCE(SUM(CASE WHEN ${ticketTransactions.type} = 'consume' THEN 1 ELSE 0 END), 0)`,
       totalPurchasedTickets: sql<number>`COALESCE(SUM(CASE WHEN ${ticketTransactions.type} = 'purchaseGrant' THEN ${ticketTransactions.delta} ELSE 0 END), 0)`,
       currentBalance: sql<number>`COALESCE(${ticketWallets.balance}, 0)`,
@@ -735,4 +736,23 @@ export async function deleteTestAccounts() {
   }
 
   return { deletedCount: testAccounts.length };
+}
+
+
+export async function deleteCoffeeBean(beanId: number) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+  await db.delete(coffeeBeans).where(eq(coffeeBeans.id, beanId));
+  return { success: true as const };
+}
+
+export async function updateUserRole(userId: number, role: "admin" | "user") {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+  await db.update(users).set({ role }).where(eq(users.id, userId));
+  return { success: true as const };
 }
