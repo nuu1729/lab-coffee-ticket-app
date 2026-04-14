@@ -164,10 +164,12 @@
   - [x] 全22テスト合格確認
   - [x] GitHub にコミット・プッシュ
 
-- [ ] 即時購入機能を再設計する（通常の購入申請と同じ方式に統一）
-  - [ ] purchaseRequestsテーブルにisInstantPurchaseフラグを追加
-  - [ ] instantPurchaseTicket関数をリファクタリング（purchaseRequestを作成・自動承認）
-  - [ ] purchaseTag列を削除（isInstantPurchaseで区別するため不要）
-  - [ ] InstantPurchaseCardコンポーネントを更新
-  - [ ] テストを追加・実行して動作確認
-  - [ ] GitHub自動化ワークフローでIssue・PR作成・マージ
+- [x] 即時購入機能を再設計した（通常の購入申請と同じ方式に統一）
+  - [x] purchaseRequestsテーブルにisInstantPurchaseフラグを追加
+  - [x] instantPurchaseTicket関数をcreateInstantPurchaseRequestにリファクタリング（purchaseRequestを作成・自動承認）
+  - [x] purchaseTag列を削除（isInstantPurchaseで区別するため不要）
+  - [x] sourceType から 'instantPurchase' を削除
+  - [x] InstantPurchaseCardコンポーネントは変更不要（既存のまま動作）
+  - [x] テストを追加・実行して動作確認（全22テスト合格）
+  - [x] GitHub Issue #11を作成し、feature/issue-11-redesign-instant-purchase ブランチで実装
+  - [x] コミット・チェックポイント保存完了

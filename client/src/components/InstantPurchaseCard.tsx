@@ -81,7 +81,7 @@ export default function InstantPurchaseCard() {
         </Button>
 
         <p className="text-xs text-stone-500 text-center">
-          購入履歴に「即時購入」として記録されます
+          購入申請として記録され、自動承認されます
         </p>
       </CardContent>
     </Card>
