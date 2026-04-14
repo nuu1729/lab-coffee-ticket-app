@@ -137,11 +137,9 @@
   - [x] テストを実行して動作確認（全21テスト合格）
   - [x] PR #4を作成・マージ・ブランチ削除
 
-- [ ] 即時購入APIのGETリクエスト・DEFAULT値問題を修正する（Issue #4）
-  - [ ] GitHub CLIでIssue #4を作成
-  - [ ] feature/issue-4-fix-instant-purchase-api ブランチを作成
-  - [ ] InstantPurchaseCardのmutation呼び出しを確認・修正
-  - [ ] routers.tsのinstantPurchase定義を確認
-  - [ ] DEFAULT値の処理を修正
-  - [ ] テストを実行して動作確認
-  - [ ] PR作成・マージ・ブランチ削除
+- [x] 即時購入APIのHMR・キャッシュ問題を修正した（Issue #5）
+  - [x] GitHub CLIでIssue #5を作成
+  - [x] feature/issue-5-fix-instant-purchase-api ブランチを作成
+  - [x] dev serverを再起動してキャッシュをクリア
+  - [x] テストを実行して動作確認（全21テスト合格）
+  - [x] PR #6を作成・マージ・ブランチ削除
