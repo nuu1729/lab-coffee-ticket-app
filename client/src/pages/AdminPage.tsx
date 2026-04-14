@@ -65,6 +65,7 @@ export default function AdminPage() {
   const [editingBeanId, setEditingBeanId] = useState<number | undefined>(undefined);
   const [editingTicketUserId, setEditingTicketUserId] = useState<number | undefined>(undefined);
   const [editingTicketAmount, setEditingTicketAmount] = useState<number>(0);
+  const [editingTicketMaxBalance, setEditingTicketMaxBalance] = useState<number>(0);
   const [showTicketEditDialog, setShowTicketEditDialog] = useState(false);
   const [isUserListOpen, setIsUserListOpen] = useState(false);
   const [beanName, setBeanName] = useState("");
@@ -642,6 +643,7 @@ export default function AdminPage() {
                                 onClick={() => {
                                   setEditingTicketUserId(stat.userId);
                                   setEditingTicketAmount(stat.currentBalance);
+                                  setEditingTicketMaxBalance(stat.totalPurchasedTickets);
                                   setShowTicketEditDialog(true);
                                 }}
                               >
@@ -717,13 +719,25 @@ export default function AdminPage() {
               <div>
                 <label className="text-sm font-medium text-stone-700">新しいチケット枚数</label>
                 <input
-                  type="number"
-                  min="0"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={editingTicketAmount}
-                  onChange={(e) => setEditingTicketAmount(Math.max(0, parseInt(e.target.value) || 0))}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^0-9]/g, '');
+                    setEditingTicketAmount(value === '' ? 0 : Math.max(0, parseInt(value)));
+                  }}
                   className="w-full mt-1 px-3 py-2 border border-stone-200 rounded-lg"
+                  placeholder="0"
                 />
+                <p className="mt-1 text-xs text-stone-600">購入枚数: {editingTicketMaxBalance}枚</p>
               </div>
+              {editingTicketAmount > editingTicketMaxBalance && (
+                <div className="rounded-[12px] border border-red-200/80 bg-red-50/50 p-3">
+                  <p className="text-sm font-semibold text-red-900">⚠️ 警告</p>
+                  <p className="mt-1 text-xs text-red-700">残りチケット枚数は購入枚数（{editingTicketMaxBalance}枚）を超えることはできません。</p>
+                </div>
+              )}
             </div>
             <div className="flex gap-3 justify-end">
               <DialogClose asChild>
@@ -731,9 +745,9 @@ export default function AdminPage() {
               </DialogClose>
               <Button
                 className="rounded-full"
-                disabled={updateTicketBalanceMutation.isPending}
+                disabled={updateTicketBalanceMutation.isPending || editingTicketAmount > editingTicketMaxBalance}
                 onClick={() => {
-                  if (editingTicketUserId) {
+                  if (editingTicketUserId && editingTicketAmount <= editingTicketMaxBalance) {
                     updateTicketBalanceMutation.mutate({
                       userId: editingTicketUserId,
                       newBalance: editingTicketAmount,

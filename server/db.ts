@@ -766,11 +766,29 @@ export async function updateTicketBalance(userId: number, newBalance: number) {
     throw new Error("Database is not available");
   }
   
+  // Validate input
+  if (newBalance < 0) {
+    throw new Error("チケット枚数は0以上である必要があります");
+  }
+  
   // Get current balance
   const wallet = await db.select().from(ticketWallets).where(eq(ticketWallets.userId, userId));
   
   if (!wallet.length) {
     throw new Error("ユーザーのチケットウォレットが見つかりません");
+  }
+  
+  // Get total purchased tickets to validate upper limit
+  const purchaseList = await db
+    .select()
+    .from(purchaseRequests)
+    .where(eq(purchaseRequests.userId, userId));
+  
+  const totalPurchasedTickets = purchaseList.reduce((sum, req) => sum + req.ticketCount, 0);
+  
+  // Validate that new balance does not exceed total purchased tickets
+  if (newBalance > totalPurchasedTickets) {
+    throw new Error(`チケット枚数は購入枚数（${totalPurchasedTickets}枚）を超えることはできません`);
   }
   
   const currentBalance = wallet[0].balance;
