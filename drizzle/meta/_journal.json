@@ -36,6 +36,13 @@
       "when": 1776145284884,
       "tag": "0004_naive_rocket_racer",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1776152346124,
+      "tag": "0005_rapid_malcolm_colcord",
+      "breakpoints": true
     }
   ]
 }

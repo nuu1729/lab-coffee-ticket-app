@@ -816,7 +816,7 @@ export async function updateTicketBalance(userId: number, newBalance: number) {
 export const INSTANT_TICKET_PRICE_YEN = 70;
 export const INSTANT_TICKET_COUNT = 1;
 
-export async function instantPurchaseTicket(userId: number, paymentMethod: PaymentMethod) {
+export async function createInstantPurchaseRequest(userId: number, paymentMethod: PaymentMethod) {
   const db = await getDb();
   if (!db) {
     throw new Error("Database is not available");
@@ -827,7 +827,22 @@ export async function instantPurchaseTicket(userId: number, paymentMethod: Payme
     throw new Error("無効な支払方法です");
   }
   
-  // Get current wallet
+  // Create purchase request with isInstantPurchase flag
+  const [result] = await db.insert(purchaseRequests).values({
+    userId,
+    planCode: "twentyFour",
+    ticketCount: 1,
+    priceYen: 70,
+    paymentMethod,
+    status: "approved",
+    isInstantPurchase: 1,
+    approvedAt: new Date(),
+    approvedByUserId: userId,
+  });
+  
+  const purchaseRequestId = result.insertId;
+  
+  // Grant tickets immediately
   const wallet = await db.select().from(ticketWallets).where(eq(ticketWallets.userId, userId));
   
   if (!wallet.length) {
@@ -835,29 +850,27 @@ export async function instantPurchaseTicket(userId: number, paymentMethod: Payme
   }
   
   const currentBalance = wallet[0].balance;
-  const newBalance = currentBalance + INSTANT_TICKET_COUNT;
+  const newBalance = currentBalance + 1;
   
   // Update wallet balance
   await db.update(ticketWallets).set({ balance: newBalance }).where(eq(ticketWallets.userId, userId));
   
-  // Record transaction with instantPurchase tag
-  // Explicitly set purchaseRequestId and performedByUserId to NULL using raw SQL
+  // Record transaction
   await db.insert(ticketTransactions).values({
     userId,
     type: "purchaseGrant",
-    sourceType: "instantPurchase",
-    purchaseTag: "instantPurchase",
-    delta: INSTANT_TICKET_COUNT,
-    purchaseRequestId: sql`NULL`,
-    performedByUserId: sql`NULL`,
+    sourceType: "purchaseRequest",
+    delta: 1,
+    purchaseRequestId,
+    performedByUserId: userId,
     createdAt: new Date(),
   });
   
   return { 
     success: true as const,
     newBalance,
-    ticketCount: INSTANT_TICKET_COUNT,
-    priceYen: INSTANT_TICKET_PRICE_YEN,
+    ticketCount: 1,
+    priceYen: 70,
     paymentMethod,
   };
 }

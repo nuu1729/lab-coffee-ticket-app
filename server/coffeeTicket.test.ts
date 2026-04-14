@@ -312,7 +312,7 @@ describe("coffee ticket routers", () => {
   });
 
   it("allows instant purchase with payment method selection", async () => {
-    dbMock.instantPurchaseTicket = vi.fn().mockResolvedValue({
+    dbMock.createInstantPurchaseRequest = vi.fn().mockResolvedValue({
       success: true,
       newBalance: 40,
       ticketCount: 1,
@@ -332,11 +332,11 @@ describe("coffee ticket routers", () => {
       priceYen: 70,
       paymentMethod: "paypay",
     });
-    expect(dbMock.instantPurchaseTicket).toHaveBeenCalledWith(1, "paypay");
+    expect(dbMock.createInstantPurchaseRequest).toHaveBeenCalledWith(1, "paypay");
   });
 
   it("supports cash payment method for instant purchase", async () => {
-    dbMock.instantPurchaseTicket = vi.fn().mockResolvedValue({
+    dbMock.createInstantPurchaseRequest = vi.fn().mockResolvedValue({
       success: true,
       newBalance: 41,
       ticketCount: 1,
@@ -350,11 +350,11 @@ describe("coffee ticket routers", () => {
     });
 
     expect(result.paymentMethod).toBe("cash");
-    expect(dbMock.instantPurchaseTicket).toHaveBeenCalledWith(1, "cash");
+    expect(dbMock.createInstantPurchaseRequest).toHaveBeenCalledWith(1, "cash");
   });
 
   it("wraps instant purchase failures as user-friendly errors", async () => {
-    dbMock.instantPurchaseTicket = vi.fn().mockRejectedValue(new Error("無効な支払方法です"));
+    dbMock.createInstantPurchaseRequest = vi.fn().mockRejectedValue(new Error("無効な支払方法です"));
 
     const caller = appRouter.createCaller(createContext("user"));
 
@@ -369,7 +369,7 @@ describe("coffee ticket routers", () => {
   it("ensures purchaseRequestId and performedByUserId are NULL for instant purchase", async () => {
     // This test verifies that the sql`NULL` fix is working correctly
     // by checking that the mock is called and the transaction is recorded
-    dbMock.instantPurchaseTicket = vi.fn().mockResolvedValue({
+    dbMock.createInstantPurchaseRequest = vi.fn().mockResolvedValue({
       success: true,
       newBalance: 42,
       ticketCount: 1,
@@ -383,7 +383,7 @@ describe("coffee ticket routers", () => {
     });
 
     // Verify the function was called with correct parameters
-    expect(dbMock.instantPurchaseTicket).toHaveBeenCalledWith(1, "paypay");
+    expect(dbMock.createInstantPurchaseRequest).toHaveBeenCalledWith(1, "paypay");
     
     // Verify the result is successful
     expect(result.success).toBe(true);

@@ -15,7 +15,7 @@ import {
   deleteUser,
   deleteUsageLog,
   generateQrCode,
-  instantPurchaseTicket,
+  createInstantPurchaseRequest,
   updateTicketBalance,
   getDashboardData,
   getDb,
@@ -113,7 +113,7 @@ export const appRouter = router({
       )
       .mutation(async ({ ctx, input }) => {
         try {
-          return await instantPurchaseTicket(ctx.user.id, input.paymentMethod);
+          return await createInstantPurchaseRequest(ctx.user.id, input.paymentMethod);
         } catch (error) {
           throw new TRPCError({
             code: "BAD_REQUEST",

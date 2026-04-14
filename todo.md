@@ -163,3 +163,11 @@
   - [x] purchaseRequestId と performedByUserId が NULL で処理されることを検証
   - [x] 全22テスト合格確認
   - [x] GitHub にコミット・プッシュ
+
+- [ ] 即時購入機能を再設計する（通常の購入申請と同じ方式に統一）
+  - [ ] purchaseRequestsテーブルにisInstantPurchaseフラグを追加
+  - [ ] instantPurchaseTicket関数をリファクタリング（purchaseRequestを作成・自動承認）
+  - [ ] purchaseTag列を削除（isInstantPurchaseで区別するため不要）
+  - [ ] InstantPurchaseCardコンポーネントを更新
+  - [ ] テストを追加・実行して動作確認
+  - [ ] GitHub自動化ワークフローでIssue・PR作成・マージ
