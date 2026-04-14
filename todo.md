@@ -130,9 +130,9 @@
   - [x] 即時購入の回帰テストを3つ追加（全21テスト合格）
   - [x] PR #2を作成・マージ・ブランチ削除
 
-- [ ] Drizzle insert時のNULL値処理を修正する（Issue #2）
-  - [ ] GitHub CLIでIssue #2を作成
-  - [ ] feature/issue-2-fix-null-handling ブランチを作成
-  - [ ] Drizzle insert時にNULL値を正しく処理するように修正
-  - [ ] テストを実行して動作確認
-  - [ ] PR作成・マージ・ブランチ削除
+- [x] Drizzle insert時のNULL値処理を修正した（Issue #3）
+  - [x] GitHub CLIでIssue #3を作成
+  - [x] feature/issue-2-fix-null-handling ブランチを作成
+  - [x] purchaseRequestIdとperformedByUserIdをinsert時に指定しないように修正
+  - [x] テストを実行して動作確認（全21テスト合格）
+  - [x] PR #4を作成・マージ・ブランチ削除
