@@ -841,14 +841,14 @@ export async function instantPurchaseTicket(userId: number, paymentMethod: Payme
   await db.update(ticketWallets).set({ balance: newBalance }).where(eq(ticketWallets.userId, userId));
   
   // Record transaction with instantPurchase tag
+  // Note: purchaseRequestId and performedByUserId are omitted (not included in insert)
+  // because they are optional fields that should remain NULL for instant purchases
   await db.insert(ticketTransactions).values({
     userId,
     type: "purchaseGrant",
     sourceType: "instantPurchase",
     purchaseTag: "instantPurchase",
     delta: INSTANT_TICKET_COUNT,
-    purchaseRequestId: null,
-    performedByUserId: null,
     createdAt: new Date(),
   });
   
