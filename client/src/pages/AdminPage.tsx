@@ -764,8 +764,8 @@ export default function AdminPage() {
                   <Skeleton className="h-20 rounded-[22px]" />
                 </div>
               ) : statsQuery.data ? (
-                <>
-                <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-5">
+                  <div className="grid gap-3 md:grid-cols-2">
                   <div className="rounded-[24px] border border-stone-200/80 bg-white/80 p-5">
                     <p className="text-xs text-stone-600">累計利用回数</p>
                     <p className="mt-2 text-3xl font-bold text-stone-900">{statsQuery.data.totalConsumptions}</p>
@@ -809,8 +809,8 @@ export default function AdminPage() {
                   ) : (
                     <p className="text-xs text-stone-500">データなし</p>
                   )}
+                  </div>
                 </div>
-                </>
               ) : null}
             </CardContent>
           </Card>
