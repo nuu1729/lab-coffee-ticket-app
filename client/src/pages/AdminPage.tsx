@@ -43,7 +43,7 @@ export default function AdminPage() {
     enabled: user?.role === "admin",
   });
   const userUsageStatsQuery = trpc.admin.userUsageStats.useQuery(undefined, {
-    enabled: user?.role === "admin",
+    enabled: !!user, // Allow all authenticated users
   });
   const testAccountsQuery = trpc.admin.testAccounts.useQuery(undefined, {
     enabled: user?.role === "admin",
@@ -63,6 +63,9 @@ export default function AdminPage() {
   }, [userUsageStatsQuery.data]);
 
   const [editingBeanId, setEditingBeanId] = useState<number | undefined>(undefined);
+  const [editingTicketUserId, setEditingTicketUserId] = useState<number | undefined>(undefined);
+  const [editingTicketAmount, setEditingTicketAmount] = useState<number>(0);
+  const [showTicketEditDialog, setShowTicketEditDialog] = useState(false);
   const [isUserListOpen, setIsUserListOpen] = useState(false);
   const [beanName, setBeanName] = useState("");
   const [beanFeatures, setBeanFeatures] = useState("");
@@ -116,6 +119,17 @@ export default function AdminPage() {
     },
     onError: error => {
       toast.error(error.message || "ユーザー権限の更新に失敗しました。");
+    },
+  });
+
+  const updateTicketBalanceMutation = trpc.admin.updateTicketBalance.useMutation({
+    onSuccess: async () => {
+      toast.success("チケット枚数を更新しました。");
+      await utils.admin.userUsageStats.invalidate();
+      setShowTicketEditDialog(false);
+    },
+    onError: error => {
+      toast.error(error.message || "チケット枚数の更新に失敗しました。");
     },
   });
 
@@ -619,7 +633,24 @@ export default function AdminPage() {
                           <td className="px-4 py-3 text-xs text-stone-600">{stat.userEmail}</td>
                           <td className="px-4 py-3 text-center text-stone-900">{stat.totalConsumptions}</td>
                           <td className="px-4 py-3 text-center text-stone-900">{stat.totalPurchasedTickets}</td>
-                          <td className="px-4 py-3 text-center font-semibold text-stone-900">{stat.currentBalance}</td>
+                          <td className="px-4 py-3 text-center font-semibold text-stone-900">
+                            {user?.role === "admin" ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                onClick={() => {
+                                  setEditingTicketUserId(stat.userId);
+                                  setEditingTicketAmount(stat.currentBalance);
+                                  setShowTicketEditDialog(true);
+                                }}
+                              >
+                                {stat.currentBalance}
+                              </Button>
+                            ) : (
+                              stat.currentBalance
+                            )}
+                          </td>
                           <td className="px-4 py-3 text-center">
                             <select
                               value={stat.role || "user"}
@@ -676,6 +707,46 @@ export default function AdminPage() {
           </Card>
         </TabsContent>
 
+        {/* Ticket Edit Dialog */}
+        <Dialog open={showTicketEditDialog} onOpenChange={setShowTicketEditDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>チケット枚数を編集</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-stone-700">新しいチケット枚数</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={editingTicketAmount}
+                  onChange={(e) => setEditingTicketAmount(Math.max(0, parseInt(e.target.value) || 0))}
+                  className="w-full mt-1 px-3 py-2 border border-stone-200 rounded-lg"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <DialogClose asChild>
+                <Button variant="outline" className="rounded-full">キャンセル</Button>
+              </DialogClose>
+              <Button
+                className="rounded-full"
+                disabled={updateTicketBalanceMutation.isPending}
+                onClick={() => {
+                  if (editingTicketUserId) {
+                    updateTicketBalanceMutation.mutate({
+                      userId: editingTicketUserId,
+                      newBalance: editingTicketAmount,
+                    });
+                  }
+                }}
+              >
+                {updateTicketBalanceMutation.isPending ? "更新中..." : "更新"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         <TabsContent value="stats">
           <Card className="rounded-[28px] border-white/60 bg-white/75 shadow-[0_18px_60px_rgba(67,44,24,0.08)] backdrop-blur-xl">
             <CardHeader>
@@ -693,6 +764,7 @@ export default function AdminPage() {
                   <Skeleton className="h-20 rounded-[22px]" />
                 </div>
               ) : statsQuery.data ? (
+                <>
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="rounded-[24px] border border-stone-200/80 bg-white/80 p-5">
                     <p className="text-xs text-stone-600">累計利用回数</p>
@@ -711,6 +783,34 @@ export default function AdminPage() {
                     <p className="mt-2 text-lg font-semibold text-stone-900">{statsQuery.data.activeBean?.name || "未設定"}</p>
                   </div>
                 </div>
+                <div className="rounded-[24px] border border-stone-200/80 bg-white/80 p-5 mt-3">
+                  <p className="text-xs font-semibold text-stone-600 mb-3">利用回数上位3名</p>
+                  {userUsageStatsQuery.isLoading ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-6" />
+                      <Skeleton className="h-6" />
+                      <Skeleton className="h-6" />
+                    </div>
+                  ) : userUsageStatsQuery.data && userUsageStatsQuery.data.length > 0 ? (
+                    <div className="space-y-2">
+                      {userUsageStatsQuery.data
+                        .sort((a, b) => b.totalConsumptions - a.totalConsumptions)
+                        .slice(0, 3)
+                        .map((stat, index) => {
+                          const displayName = stat.displayName || stat.userName;
+                          return (
+                            <div key={stat.userId} className="flex items-center justify-between text-sm">
+                              <span className="font-medium text-stone-900">{index + 1}. {displayName || "ユーザー未設定"}</span>
+                              <span className="text-stone-600">{stat.totalConsumptions}回</span>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-stone-500">データなし</p>
+                  )}
+                </div>
+                </>
               ) : null}
             </CardContent>
           </Card>

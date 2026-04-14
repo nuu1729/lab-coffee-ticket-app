@@ -15,6 +15,7 @@ import {
   deleteUser,
   deleteUsageLog,
   generateQrCode,
+  updateTicketBalance,
   getDashboardData,
   getDb,
   getTicketPlanDefinition,
@@ -248,6 +249,18 @@ export const appRouter = router({
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
             message: error instanceof Error ? error.message : "ユーザー権限の更新に失敗しました",
+          });
+        }
+      }),
+    updateTicketBalance: adminProcedure
+      .input(z.object({ userId: z.number().int().positive(), newBalance: z.number().int().min(0) }))
+      .mutation(async ({ input }) => {
+        try {
+          return await updateTicketBalance(input.userId, input.newBalance);
+        } catch (error) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: error instanceof Error ? error.message : "チケット枚数の更新に失敗しました",
           });
         }
       }),

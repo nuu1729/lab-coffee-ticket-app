@@ -653,7 +653,8 @@ export async function getUserUsageStats() {
     .from(users)
     .leftJoin(ticketTransactions, eq(users.id, ticketTransactions.userId))
     .leftJoin(ticketWallets, eq(users.id, ticketWallets.userId))
-    .where(eq(users.role, "user"))
+    // Include both user and admin roles
+    // .where(eq(users.role, "user"))
     .groupBy(users.id, users.name, users.email, users.displayName, ticketWallets.balance)
     .orderBy(desc(sql<number>`COALESCE(SUM(CASE WHEN ${ticketTransactions.type} = 'consume' THEN 1 ELSE 0 END), 0)`));
 
@@ -662,6 +663,7 @@ export async function getUserUsageStats() {
     userName: stat.userName,
     userEmail: stat.userEmail,
     displayName: stat.displayName,
+    role: stat.role,
     totalConsumptions: Number(stat.totalConsumptions ?? 0),
     totalPurchasedTickets: Number(stat.totalPurchasedTickets ?? 0),
     currentBalance: Number(stat.currentBalance ?? 0),
@@ -754,5 +756,39 @@ export async function updateUserRole(userId: number, role: "admin" | "user") {
     throw new Error("Database is not available");
   }
   await db.update(users).set({ role }).where(eq(users.id, userId));
+  return { success: true as const };
+}
+
+
+export async function updateTicketBalance(userId: number, newBalance: number) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+  
+  // Get current balance
+  const wallet = await db.select().from(ticketWallets).where(eq(ticketWallets.userId, userId));
+  
+  if (!wallet.length) {
+    throw new Error("ユーザーのチケットウォレットが見つかりません");
+  }
+  
+  const currentBalance = wallet[0].balance;
+  const delta = newBalance - currentBalance;
+  
+  // Update wallet balance
+  await db.update(ticketWallets).set({ balance: newBalance }).where(eq(ticketWallets.userId, userId));
+  
+  // Record transaction
+  if (delta !== 0) {
+    await db.insert(ticketTransactions).values({
+      userId,
+      type: delta > 0 ? "purchaseGrant" : "consume",
+      sourceType: "adminAction",
+      delta: Math.abs(delta),
+      createdAt: new Date(),
+    });
+  }
+  
   return { success: true as const };
 }
