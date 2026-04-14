@@ -157,3 +157,9 @@
   - [x] db.tsのinstantPurchaseTicket関数でsql`NULL`を使用してNULL値を明示的に指定
   - [x] テストを実行して動作確認（全21テスト合格）
   - [x] PR #10を作成・マージ・ブランチ削除
+
+- [x] 即時購入フローで `sql`NULL`` 修正後の回帰テストを追加し、全22テスト合格を確認した
+  - [x] server/coffeeTicket.test.ts に回帰テストを追加
+  - [x] purchaseRequestId と performedByUserId が NULL で処理されることを検証
+  - [x] 全22テスト合格確認
+  - [x] GitHub にコミット・プッシュ
