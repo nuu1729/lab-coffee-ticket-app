@@ -143,3 +143,16 @@
   - [x] dev serverを再起動してキャッシュをクリア
   - [x] テストを実行して動作確認（全21テスト合格）
   - [x] PR #6を作成・マージ・ブランチ削除
+
+- [x] tRPCのhttpBatchLinkをhttpLinkに変更した（Issue #7）
+  - [x] GitHub CLIでIssue #7を作成（根本原因分析を詳細に記載）
+  - [x] feature/issue-7-fix-trpc-batch-link ブランチを作成
+  - [x] client/src/main.tsxでhttpBatchLinkをhttpLinkに変更
+  - [x] テストを実行して動作確認（全21テスト合格）
+  - [x] PR #8を作成・マージ・ブランチ削除
+
+- [ ] Drizzle insert時のDEFAULT値問題を完全に修正する（Issue #XXX）
+  - [ ] db.tsのinstantPurchaseTicket関数でpurchaseRequestIdとperformedByUserIdを完全に除去
+  - [ ] Drizzleの.values()メソッドで明示的にフィールドを指定しない方法を確認
+  - [ ] テストを実行して動作確認
+  - [ ] GitHub自動化ワークフローでIssue・PR作成・マージ
