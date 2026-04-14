@@ -121,3 +121,10 @@
   - [x] PurchasePage に組み込み
   - [x] 利用ログに purchaseTag で記録される
   - [x] 全テストが合格して動作確認
+
+- [ ] 即時購入エラーを修正する（Issue #XXX）
+  - [ ] GitHub自動化スクリプトでIssueとブランチを作成
+  - [ ] ticketTransactions インサート時の NULL エラーを修正
+  - [ ] purchaseRequestId と performedByUserId をオプショナルに変更
+  - [ ] テストを実行して動作確認
+  - [ ] PR作成・マージ・ブランチ削除

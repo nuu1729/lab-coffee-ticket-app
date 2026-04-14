@@ -847,6 +847,8 @@ export async function instantPurchaseTicket(userId: number, paymentMethod: Payme
     sourceType: "instantPurchase",
     purchaseTag: "instantPurchase",
     delta: INSTANT_TICKET_COUNT,
+    purchaseRequestId: null,
+    performedByUserId: null,
     createdAt: new Date(),
   });
   
