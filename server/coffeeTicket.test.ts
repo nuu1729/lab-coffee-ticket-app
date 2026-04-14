@@ -310,3 +310,58 @@ describe("coffee ticket routers", () => {
       code: "FORBIDDEN",
     });
   });
+
+  it("allows instant purchase with payment method selection", async () => {
+    dbMock.instantPurchaseTicket = vi.fn().mockResolvedValue({
+      success: true,
+      newBalance: 40,
+      ticketCount: 1,
+      priceYen: 70,
+      paymentMethod: "paypay",
+    });
+
+    const caller = appRouter.createCaller(createContext("user"));
+    const result = await caller.ticket.instantPurchase({
+      paymentMethod: "paypay",
+    });
+
+    expect(result).toEqual({
+      success: true,
+      newBalance: 40,
+      ticketCount: 1,
+      priceYen: 70,
+      paymentMethod: "paypay",
+    });
+    expect(dbMock.instantPurchaseTicket).toHaveBeenCalledWith(1, "paypay");
+  });
+
+  it("supports cash payment method for instant purchase", async () => {
+    dbMock.instantPurchaseTicket = vi.fn().mockResolvedValue({
+      success: true,
+      newBalance: 41,
+      ticketCount: 1,
+      priceYen: 70,
+      paymentMethod: "cash",
+    });
+
+    const caller = appRouter.createCaller(createContext("user"));
+    const result = await caller.ticket.instantPurchase({
+      paymentMethod: "cash",
+    });
+
+    expect(result.paymentMethod).toBe("cash");
+    expect(dbMock.instantPurchaseTicket).toHaveBeenCalledWith(1, "cash");
+  });
+
+  it("wraps instant purchase failures as user-friendly errors", async () => {
+    dbMock.instantPurchaseTicket = vi.fn().mockRejectedValue(new Error("無効な支払方法です"));
+
+    const caller = appRouter.createCaller(createContext("user"));
+
+    await expect(
+      caller.ticket.instantPurchase({ paymentMethod: "paypay" })
+    ).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+      message: "無効な支払方法です",
+    });
+  });

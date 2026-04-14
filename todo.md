@@ -122,9 +122,10 @@
   - [x] 利用ログに purchaseTag で記録される
   - [x] 全テストが合格して動作確認
 
-- [ ] 即時購入エラーを修正する（Issue #XXX）
-  - [ ] GitHub自動化スクリプトでIssueとブランチを作成
-  - [ ] ticketTransactions インサート時の NULL エラーを修正
-  - [ ] purchaseRequestId と performedByUserId をオプショナルに変更
-  - [ ] テストを実行して動作確認
-  - [ ] PR作成・マージ・ブランチ削除
+- [x] 即時購入エラーを修正した（Issue #1）
+  - [x] GitHub CLIでIssue #1を作成
+  - [x] feature/issue-1-fix-instant-purchase-error ブランチを作成
+  - [x] ticketTransactions インサート時の NULL エラーを修正
+  - [x] purchaseRequestId と performedByUserId を明示的に NULL に設定
+  - [x] 即時購入の回帰テストを3つ追加（全21テスト合格）
+  - [x] PR #2を作成・マージ・ブランチ削除
