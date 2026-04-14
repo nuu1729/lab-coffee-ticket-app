@@ -176,10 +176,10 @@ def paste_qr(base, qr_path, box, public_dummy=False):
         qr = Image.open(qr_path).convert('RGB')
         if Path(qr_path) == PAYPAY_QR:
             w, h = qr.size
-            qr = qr.crop((0, 0, w, int(h * 0.78)))
-            bg = Image.new('RGB', (w, w), COLORS['white'])
-            qrw, qrh = qr.size
-            yoff = max(0, (w - qrh) // 2 - 10)
+            qr = qr.crop((80, 20, w - 80, int(h * 0.78)))
+            crop_w, crop_h = qr.size
+            bg = Image.new('RGB', (crop_w, crop_w), COLORS['white'])
+            yoff = max(0, (crop_w - crop_h) // 2)
             bg.paste(qr, (0, yoff))
             qr = bg
         qr = qr.resize((size, size))
@@ -216,23 +216,24 @@ def build_poster(public_version=True):
     rounded_panel(img, [110, 1500, W-110, H-130], 42, COLORS['soft_panel'], outline=COLORS['line'], width=4)
     draw = ImageDraw.Draw(img)
     draw.text((170, 1565), 'HOW TO USE', font=f_body_bold, fill=COLORS['dark_green'])
-    draw.text((910, 1565), 'PRICE', font=f_body_bold, fill=COLORS['dark_green'])
+    draw.text((960, 1565), 'PRICE', font=f_body_bold, fill=COLORS['dark_green'])
 
     steps = [
-        '1. QRコードを読み取り Manus アカウントにサインイン・ログイン',
+        '1. QRコードを読み取り Manus アカウントに\n   サインイン・ログイン',
         '2. アカウント名を登録',
         '3. 購入申請を送る',
-        '4. 支払方法を選ぶ（現金 or PayPay）',
+        '4. 支払方法を選ぶ\n   （現金 or PayPay）',
         '5. 支払確認後、チケット配布',
     ]
     y = 1650
+    step_font = font(FONT_SANS, 30)
     for s in steps:
-        draw.rounded_rectangle([170, y, 820, y+92], radius=24, fill=COLORS['white'], outline=COLORS['line'], width=2)
-        draw.text((198, y+20), s, font=font(FONT_SANS, 34), fill=COLORS['charcoal'])
-        y += 108
+        draw.rounded_rectangle([170, y, 900, y+106], radius=24, fill=COLORS['white'], outline=COLORS['line'], width=2)
+        draw.multiline_text((198, y+14), s, font=step_font, fill=COLORS['charcoal'], spacing=6)
+        y += 118
 
     # Price table
-    px1, py1, px2 = 910, 1640, W-170
+    px1, py1, px2 = 960, 1640, W-170
     draw.rounded_rectangle([px1, py1, px2, py1+250], radius=28, fill=COLORS['white'], outline=COLORS['line'], width=2)
     draw.line([(px1+40, py1+88), (px2-40, py1+88)], fill=COLORS['line'], width=2)
     draw.line([(px1+40, py1+170), (px2-40, py1+170)], fill=COLORS['line'], width=2)
