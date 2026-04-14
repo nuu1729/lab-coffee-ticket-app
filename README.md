@@ -447,13 +447,34 @@ pnpm dev
 
 ### 自動化スクリプト
 
-> **注記**: GitHub Issue・ブランチ・PR自動化スクリプトの実装は詳定中です。現在は手動で下記の手順に執いています。
-
-今後の実装予定の自動化処理：
+本プロジェクトではGitHub自動化スクリプトを提供しています。以下の処理を自動化しています：
 
 - **Issue自動作成** - 新機能の要件をIssueとして登録
 - **ブランチ自動作成** - Issue番号を含むブランチを自動生成
 - **PR自動作成** - 実装完了時のPRを自動作成
+
+#### 使用方法
+
+完全なワークフロー（Issue作成→ブランチ作成）：
+
+```bash
+./scripts/github-automation.sh workflow "機能名" "詳細な説明" "label"
+```
+
+個別コマンド：
+
+```bash
+# Issue作成
+./scripts/github-automation.sh issue "機能名" "詳細な説明"
+
+# ブランチ作成
+./scripts/github-automation.sh branch <issue_number> "機能名"
+
+# PR作成
+./scripts/github-automation.sh pr "branch_name" <issue_number>
+```
+
+詳細な使用方法は [docs/GITHUB_WORKFLOW.md](./docs/GITHUB_WORKFLOW.md) を参照してください。
 
 ---
 
