@@ -22,10 +22,10 @@ export const TICKET_PLAN_DEFINITIONS = {
     ticketCount: 10,
     priceYen: 500,
   },
-  twentyFive: {
-    code: "twentyFive",
-    label: "25回 / 1000円",
-    ticketCount: 25,
+  twentyFour: {
+    code: "twentyFour",
+    label: "24回 / 1000円",
+    ticketCount: 24,
     priceYen: 1000,
   },
 } as const;
@@ -809,4 +809,52 @@ export async function updateTicketBalance(userId: number, newBalance: number) {
   }
   
   return { success: true as const };
+}
+
+
+// Instant purchase: 1 ticket for 70 yen
+export const INSTANT_TICKET_PRICE_YEN = 70;
+export const INSTANT_TICKET_COUNT = 1;
+
+export async function instantPurchaseTicket(userId: number, paymentMethod: PaymentMethod) {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database is not available");
+  }
+  
+  // Validate payment method
+  if (!["paypay", "cash"].includes(paymentMethod)) {
+    throw new Error("無効な支払方法です");
+  }
+  
+  // Get current wallet
+  const wallet = await db.select().from(ticketWallets).where(eq(ticketWallets.userId, userId));
+  
+  if (!wallet.length) {
+    throw new Error("ユーザーのチケットウォレットが見つかりません");
+  }
+  
+  const currentBalance = wallet[0].balance;
+  const newBalance = currentBalance + INSTANT_TICKET_COUNT;
+  
+  // Update wallet balance
+  await db.update(ticketWallets).set({ balance: newBalance }).where(eq(ticketWallets.userId, userId));
+  
+  // Record transaction with instantPurchase tag
+  await db.insert(ticketTransactions).values({
+    userId,
+    type: "purchaseGrant",
+    sourceType: "instantPurchase",
+    purchaseTag: "instantPurchase",
+    delta: INSTANT_TICKET_COUNT,
+    createdAt: new Date(),
+  });
+  
+  return { 
+    success: true as const,
+    newBalance,
+    ticketCount: INSTANT_TICKET_COUNT,
+    priceYen: INSTANT_TICKET_PRICE_YEN,
+    paymentMethod,
+  };
 }

@@ -1,0 +1,2 @@
+ALTER TABLE `ticketTransactions` MODIFY COLUMN `sourceType` enum('purchaseRequest','qrUse','adminAction','instantPurchase') NOT NULL;--> statement-breakpoint
+ALTER TABLE `ticketTransactions` ADD `purchaseTag` enum('bundlePurchase','instantPurchase') DEFAULT 'bundlePurchase' NOT NULL;

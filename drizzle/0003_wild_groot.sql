@@ -1,0 +1,1 @@
+ALTER TABLE `purchaseRequests` MODIFY COLUMN `planCode` enum('ten','twentyFour') NOT NULL;

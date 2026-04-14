@@ -106,3 +106,18 @@
   - [x] 残りチケット枚数が購入枚数を超えないようにチェックを実装
   - [x] 上限超過時に警告メッセージを表示
   - [x] 全テストが合格して動作確認
+
+- [x] チケット料金体系を1000円24枚に変更した
+  - [x] TICKET_PLAN_DEFINITIONS を更新
+  - [x] スキーマ・ルーターを更新
+  - [x] PurchasePage.tsx の表示を更新
+  
+- [x] 即時購入機能を実装した（申請不要で1枚70円）
+  - [x] ticketTransactions テーブルに purchaseTag を追加
+  - [x] sourceType に "instantPurchase" を追加
+  - [x] instantPurchaseTicket API を実装
+  - [x] 支払方法（現金・PayPay）を指定可能に実装
+  - [x] InstantPurchaseCard UI コンポーネントを作成
+  - [x] PurchasePage に組み込み
+  - [x] 利用ログに purchaseTag で記録される
+  - [x] 全テストが合格して動作確認

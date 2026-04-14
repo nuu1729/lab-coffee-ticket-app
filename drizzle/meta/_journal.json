@@ -22,6 +22,20 @@
       "when": 1775803161970,
       "tag": "0002_broken_golden_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1776145222452,
+      "tag": "0003_wild_groot",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1776145284884,
+      "tag": "0004_naive_rocket_racer",
+      "breakpoints": true
     }
   ]
 }

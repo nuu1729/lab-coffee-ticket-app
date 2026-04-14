@@ -57,7 +57,7 @@ export const purchaseRequests = mysqlTable("purchaseRequests", {
   userId: int("userId")
     .notNull()
     .references(() => users.id),
-  planCode: mysqlEnum("planCode", ["ten", "twentyFive"]).notNull(),
+  planCode: mysqlEnum("planCode", ["ten", "twentyFour"]).notNull(),
   ticketCount: int("ticketCount").notNull(),
   priceYen: int("priceYen").notNull(),
   paymentMethod: mysqlEnum("paymentMethod", ["paypay", "cash"]).notNull(),
@@ -78,7 +78,8 @@ export const ticketTransactions = mysqlTable("ticketTransactions", {
     .references(() => users.id),
   delta: int("delta").notNull(),
   type: mysqlEnum("type", ["purchaseGrant", "consume", "adminAdjust"]).notNull(),
-  sourceType: mysqlEnum("sourceType", ["purchaseRequest", "qrUse", "adminAction"]).notNull(),
+  sourceType: mysqlEnum("sourceType", ["purchaseRequest", "qrUse", "adminAction", "instantPurchase"]).notNull(),
+  purchaseTag: mysqlEnum("purchaseTag", ["bundlePurchase", "instantPurchase"]).notNull().default("bundlePurchase"),
   purchaseRequestId: int("purchaseRequestId").references(() => purchaseRequests.id),
   performedByUserId: int("performedByUserId").references(() => users.id),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

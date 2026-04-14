@@ -1,5 +1,5 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
+import InstantPurchaseCard from "@/components/InstantPurchaseCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,11 +16,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { CreditCard, Wallet } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { toast } from "sonner";
 
 const PLAN_OPTIONS = [
   { code: "ten", label: "10回 / 500円" },
-  { code: "twentyFive", label: "25回 / 1000円" },
+  { code: "twentyFour", label: "24回 / 1000円" },
 ] as const;
 
 const PAYMENT_OPTIONS = [
@@ -66,6 +67,9 @@ export default function PurchasePage() {
       title="チケット購入申請"
       subtitle="研究室内の支払いフローに合わせて、PayPayまたは現金での申請を丁寧に整理できる画面です。"
     >
+      <section className="mb-6">
+        <InstantPurchaseCard />
+      </section>
       <section className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
         <Card className="rounded-[28px] border-white/60 bg-white/75 shadow-[0_18px_60px_rgba(67,44,24,0.08)] backdrop-blur-xl">
           <CardHeader>
@@ -87,7 +91,7 @@ export default function PurchasePage() {
 
             <div className="space-y-2">
               <p className="text-sm font-medium text-stone-700">購入プラン</p>
-              <Select value={planCode} onValueChange={value => setPlanCode(value as "ten" | "twentyFive") }>
+              <Select value={planCode} onValueChange={value => setPlanCode(value as "ten" | "twentyFour") }>
                 <SelectTrigger className="h-12 rounded-2xl border-stone-200 bg-white/70">
                   <SelectValue placeholder="購入プランを選択" />
                 </SelectTrigger>

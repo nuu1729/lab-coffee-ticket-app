@@ -15,6 +15,7 @@ import {
   deleteUser,
   deleteUsageLog,
   generateQrCode,
+  instantPurchaseTicket,
   updateTicketBalance,
   getDashboardData,
   getDb,
@@ -34,7 +35,7 @@ import {
 } from "./db";
 
 const purchaseRequestInput = z.object({
-  planCode: z.enum(["ten", "twentyFive"]),
+  planCode: z.enum(["ten", "twentyFour"]),
   paymentMethod: z.enum(["paypay", "cash"]),
   note: z.string().max(300).optional().nullable(),
 });
@@ -104,6 +105,22 @@ export const appRouter = router({
         });
       }
     }),
+    instantPurchase: protectedProcedure
+      .input(
+        z.object({
+          paymentMethod: z.enum(["paypay", "cash"]),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        try {
+          return await instantPurchaseTicket(ctx.user.id, input.paymentMethod);
+        } catch (error) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: error instanceof Error ? error.message : "即時購入に失敗しました",
+          });
+        }
+      }),
   }),
   admin: router({
     pendingPurchaseRequests: adminProcedure.query(async () => {
